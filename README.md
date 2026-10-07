@@ -30,7 +30,7 @@ Director->PushEvent(T, TEXT("LIFTOFF"));
 
 The director keeps a short buffer, plays it about 100 ms behind the newest frame and interpolates (position linear, attitude slerp). Each entity id is bound to an `AUrvVehicle` with `AUrvDirector::Bind`.
 
-Positions are drawn exactly as sent. To stand a site such as a launch pad or a landing zone on the streamed terrain, call `AUrvDirector::SetGroundReference(LonLatHeight, AboveGroundM)`; every vehicle is then shifted so that point ends up `AboveGroundM` above the terrain under it. The terrain is measured again every second until the first entity moves. `GetGroundOffset()` returns the shift, for scenery that has to move with the vehicles.
+Positions are drawn exactly as sent. To stand a site such as a launch pad or a landing zone on the streamed terrain, call `AUrvDirector::SetGroundReference(LonLatHeight, AboveGroundM)`; every vehicle is then shifted so that point ends up `AboveGroundM` above the terrain under it. The terrain height comes from Cesium's most detailed tiles, whatever is loaded or drawn at the time. `GetGroundOffset()` returns the shift, for scenery that has to move with the vehicles, and `SampleGround` gives the same height anywhere else.
 
 A stage is drawn procedurally from `FUrvStageLook`, or from your own meshes: list them in `FUrvStageLook::Meshes` with one shared offset, rotation and scale, so parts modelled in one frame stay assembled. `StartX` and `BellDiameter` still place the plume, so set them to match the meshes' nozzle exit.
 

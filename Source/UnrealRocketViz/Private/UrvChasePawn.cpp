@@ -154,26 +154,39 @@ void AUrvChasePawn::TickDrone(const AUrvVehicle* T, float Dt, FVector& Loc, FRot
 		Gimbal = (AimPoint(T) - DronePos).Rotation().Quaternion();
 		bDroneReady = true;
 	}
-	// Terrain streams in coarse first and refines: re-measure the ground under the drone
-	// every second until it starts climbing.
-	const bool bClimbing = DronePos.Z > DroneHome.Z + 1.0;
-	if (!bClimbing && Clock - DroneGroundAt > 1.0)
+	// Hover height above the ground under the drone, once the terrain there is known.
+	if (!bDroneGroundAsked && Director)
 	{
-		FHitResult Hit;
-		const FVector Up = FVector::UpVector * 500000.0;
-		if (GetWorld()->LineTraceSingleByChannel(Hit, DroneHome + Up, DroneHome - Up, ECC_Visibility))
+		bDroneGroundAsked = true;
+		TWeakObjectPtr<AUrvChasePawn> Self(this);
+		Director->SampleGround(DroneHome, [Self](bool bOk, const FVector& Ground)
 		{
-			DroneHome.Z = Hit.ImpactPoint.Z + D.HomeOffsetM.Z * CamCmPerM;
-			DronePos.Z = DroneHome.Z;
-			DroneGroundAt = Clock;
-			UE_LOG(LogTemp, Verbose, TEXT("UnrealRocketViz: drone ground %.1f m, target %.1f m"),
-				Hit.ImpactPoint.Z / CamCmPerM, T->GetActorLocation().Z / CamCmPerM);
-		}
+			if (!Self.IsValid())
+			{
+				return;
+			}
+			if (!bOk)
+			{
+				Self->bDroneGroundAsked = false;   // ask again
+				return;
+			}
+			const double Z = Ground.Z + Self->Drone.HomeOffsetM.Z * CamCmPerM;
+			Self->DronePos.Z += Z - Self->DroneHome.Z;
+			Self->DroneHome.Z = Z;
+		});
 	}
 	// Climb once the target is under way.
 	if (T->GetVelocity().Size() > 2.0 * CamCmPerM && DronePos.Z < DroneHome.Z + D.MaxClimbM * CamCmPerM)
 	{
 		DronePos.Z = FMath::Min(DronePos.Z + D.ClimbRateMS * CamCmPerM * Dt, DroneHome.Z + D.MaxClimbM * CamCmPerM);
+	}
+	// Climb while the ground hides the target, as an operator would.
+	FHitResult Block;
+	if (GetWorld()->LineTraceSingleByChannel(Block, DronePos, AimPoint(T), ECC_Visibility))
+	{
+		const double Up = 8.0 * CamCmPerM * Dt;
+		DroneHome.Z += Up;
+		DronePos.Z += Up;
 	}
 	// Hover drift of a few tens of centimetres.
 	const FVector Drift(Wobble(Clock, 0.07, 4), Wobble(Clock, 0.06, 5), Wobble(Clock, 0.09, 6) * 0.5);

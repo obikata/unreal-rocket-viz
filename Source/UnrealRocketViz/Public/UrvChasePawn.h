@@ -18,7 +18,8 @@ enum class EUrvView : uint8
 };
 
 // A hovering camera drone with a stabilised gimbal and a zoom lens, flown the
-// way an operator would: it climbs once the target moves, the gimbal follows
+// way an operator would: it climbs once the target moves or while the ground hides
+// it, the gimbal follows
 // with a short lag, and the zoom keeps the target at a set size in the frame.
 struct FUrvDroneCamera
 {
@@ -125,7 +126,7 @@ private:
 	FVector DroneHome = FVector::ZeroVector;
 	FVector DronePos = FVector::ZeroVector;
 	bool bDroneReady = false;
-	double DroneGroundAt = -1.0;   // Clock of the last ground measurement
+	bool bDroneGroundAsked = false;
 	FQuat Gimbal = FQuat::Identity;
 	double DroneFovDeg = 40.0;
 	double Clock = 0.0;

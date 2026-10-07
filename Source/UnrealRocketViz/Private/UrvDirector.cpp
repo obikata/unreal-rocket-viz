@@ -1,6 +1,9 @@
 #include "UrvDirector.h"
 
+#include "Cesium3DTileset.h"
 #include "CesiumGeoreference.h"
+#include "CesiumSampleHeightResult.h"
+#include "EngineUtils.h"
 #include "CesiumWgs84Ellipsoid.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -138,49 +141,55 @@ void AUrvDirector::SetGroundReference(const FVector& LonLatHeight, double AboveG
 	GroundRefLlh = LonLatHeight;
 	GroundRefAboveM = AboveGroundM;
 	GroundOffset = FVector::ZeroVector;
-	GroundFoundAt = -1.0;
-	bGroundFrozen = false;
+	bGroundFound = false;
+	bGroundAsked = false;
+}
+
+void AUrvDirector::SampleGround(const FVector& WorldPos, TFunction<void(bool, const FVector&)> OnGround)
+{
+	TActorIterator<ACesium3DTileset> Terrain(GetWorld());
+	if (!Terrain || !Georeference)
+	{
+		OnGround(false, WorldPos);
+		return;
+	}
+	TWeakObjectPtr<ACesiumGeoreference> Geo = Georeference;
+	Terrain->SampleHeightMostDetailed({ Georeference->TransformUnrealPositionToLongitudeLatitudeHeight(WorldPos) },
+		FCesiumSampleHeightMostDetailedCallback::CreateLambda(
+			[Geo, WorldPos, OnGround](ACesium3DTileset*, const TArray<FCesiumSampleHeightResult>& R, const TArray<FString>&)
+			{
+				const bool bOk = Geo.IsValid() && R.Num() == 1 && R[0].SampleSuccess;
+				OnGround(bOk, bOk ? Geo->TransformLongitudeLatitudeHeightPositionToUnreal(R[0].LongitudeLatitudeHeight) : WorldPos);
+			}));
 }
 
 void AUrvDirector::UpdateGroundOffset(double Now)
 {
-	// Terrain streams in coarse first and refines, so keep measuring until the vehicles move.
-	constexpr double RetryEvery = 0.1, RefineEvery = 1.0;
-	if (!bHasGroundRef || !Georeference || bGroundFrozen)
-	{
-		return;
-	}
-	if (Now - GroundLastTry < (GroundFoundAt > 0.0 ? RefineEvery : RetryEvery))
+	if (!bHasGroundRef || !Georeference || bGroundAsked || bGroundFound || Now - GroundLastTry < 1.0)
 	{
 		return;
 	}
 	GroundLastTry = Now;
+	bGroundAsked = true;
 	const FVector P = Georeference->TransformLongitudeLatitudeHeightPositionToUnreal(GroundRefLlh);
 	// The direction transform also scales metres to centimetres; keep only the direction.
 	const FVector Up = Georeference->TransformEarthCenteredEarthFixedDirectionToUnreal(
 		Georeference->TransformUnrealPositionToEarthCenteredEarthFixed(P).GetSafeNormal()).GetSafeNormal();
-	// A trace can slip through a crack between terrain tiles of different detail and hit a
-	// tile's skirt far below, so trace a few points around the reference and keep the highest.
-	const FVector Side = FVector::CrossProduct(Up, FVector::ForwardVector).GetSafeNormal() * 300.0;
-	const FVector Side2 = FVector::CrossProduct(Up, Side).GetSafeNormal() * 300.0;
-	double Best = -UE_DOUBLE_BIG_NUMBER;
-	for (const FVector& D : { FVector::ZeroVector, Side, -Side, Side2, -Side2 })
+	TWeakObjectPtr<AUrvDirector> Self(this);
+	SampleGround(P, [Self, P, Up](bool bOk, const FVector& Ground)
 	{
-		FHitResult Hit;
-		if (GetWorld()->LineTraceSingleByChannel(Hit, P + D + Up * 200000.0, P + D - Up * 200000.0, ECC_Visibility))
+		if (!Self.IsValid())
 		{
-			Best = FMath::Max(Best, (Hit.ImpactPoint - P) | Up);
+			return;
 		}
-	}
-	if (Best > -UE_DOUBLE_BIG_NUMBER)
-	{
-		GroundOffset = Up * (Best + GroundRefAboveM * 100.0);
-		if (GroundFoundAt < 0.0)
+		Self->bGroundAsked = false;   // on failure, ask again a second later
+		if (bOk)
 		{
-			GroundFoundAt = Now;
+			Self->GroundOffset = Up * (((Ground - P) | Up) + Self->GroundRefAboveM * 100.0);
+			Self->bGroundFound = true;
+			UE_LOG(LogTemp, Log, TEXT("UnrealRocketViz: ground %.1f m from the reference"), ((Ground - P) | Up) / 100.0);
 		}
-		UE_LOG(LogTemp, Verbose, TEXT("UnrealRocketViz: ground offset %.1f m"), Best / 100.0);
-	}
+	});
 }
 
 void AUrvDirector::DrawHud(const FUrvFrame& F) const
@@ -257,10 +266,6 @@ void AUrvDirector::Tick(float DeltaSeconds)
 			const double Alt = UCesiumWgs84Ellipsoid::EarthCenteredEarthFixedToLongitudeLatitudeHeight(E->PosEcef).Z;
 			V->SetEngine(E->bEngineOn, Alt);
 		}
-	}
-	if (GroundFoundAt > 0.0 && F.Entities.ContainsByPredicate([](const FUrvEntityState& E) { return E.VelEcef.SizeSquared() > 1.0; }))
-	{
-		bGroundFrozen = true;   // a shift in flight would show as a jump
 	}
 	UpdateGroundOffset(FPlatformTime::Seconds());
 	DisplayFrame = F;
