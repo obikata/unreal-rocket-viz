@@ -168,8 +168,17 @@ void AUrvVehicle::BuildPlume()
 	Glow->RegisterComponent();
 }
 
-void AUrvVehicle::SetEngine(bool bOn, double AltitudeM)
+double AUrvVehicle::GetDynamicPressurePa() const
 {
+	const double Rho = 1.225 * FMath::Exp(-FMath::Max(AltitudeM, 0.0) / 8500.0);
+	const double V = VelocityCmS.Size() / CmPerM;
+	return 0.5 * Rho * V * V;
+}
+
+void AUrvVehicle::SetEngine(bool bOn, double InAltitudeM)
+{
+	bEngineOn = bOn;
+	AltitudeM = InAltitudeM;
 	OnEngine.Broadcast(bOn, AltitudeM);
 	if (!Plume)
 	{

@@ -30,7 +30,7 @@ Director->PushEvent(T, TEXT("LIFTOFF"));
 
 The director keeps a short buffer, plays it about 100 ms behind the newest frame and interpolates (position linear, attitude slerp). Each entity id is bound to an `AUrvVehicle` with `AUrvDirector::Bind`.
 
-Positions are drawn exactly as sent. To stand a site such as a launch pad or a landing zone on the streamed terrain, call `AUrvDirector::SetGroundReference(LonLatHeight, AboveGroundM)`; every vehicle is then shifted so that point ends up `AboveGroundM` above the terrain under it. `GetGroundOffset()` returns the shift, for scenery that has to move with the vehicles.
+Positions are drawn exactly as sent. To stand a site such as a launch pad or a landing zone on the streamed terrain, call `AUrvDirector::SetGroundReference(LonLatHeight, AboveGroundM)`; every vehicle is then shifted so that point ends up `AboveGroundM` above the terrain under it. The terrain is measured again every second until the first entity moves. `GetGroundOffset()` returns the shift, for scenery that has to move with the vehicles.
 
 A stage is drawn procedurally from `FUrvStageLook`, or from your own meshes: list them in `FUrvStageLook::Meshes` with one shared offset, rotation and scale, so parts modelled in one frame stay assembled. `StartX` and `BellDiameter` still place the plume, so set them to match the meshes' nozzle exit.
 
@@ -40,9 +40,10 @@ The overlay shows the mission clock with the readouts in `AUrvHud::Readouts` eit
 |---|---|
 | `AUrvDirector` | Buffers frames and events, places the bound vehicles |
 | `AUrvVehicle` | Procedural vehicle look and exhaust plume |
-| `AUrvChasePawn` | Chase camera: left-drag orbits, wheel zooms, keys 1–9 pick the target |
+| `AUrvChasePawn` | Camera with three views: chase (left-drag orbits, wheel zooms), drone (`FUrvDroneCamera`: hovers, climbs, gimbal and zoom track the target) and onboard (`FUrvMountedCamera` per target). Keys 1–9 pick the target, V cycles the views, A resumes the plan in `Cuts` |
+| `AUrvSoundscape` | Synthesised engine noise at the camera: delayed by the speed of sound, quieter and duller with distance; drives the camera shake |
 | `AUrvHud` | Overlay: speed, mission clock, altitude, latest event |
-| `UrvScene::Setup` | Adds a Cesium georeference, terrain, imagery, sun and sky. Imagery is a Cesium ion asset, or any `{z}/{x}/{y}` Web Mercator tile server when `ImageryUrlTemplate` is set |
+| `UrvScene::Setup` | Adds a Cesium georeference, terrain, imagery, sun and sky. Imagery is a Cesium ion asset, or any Web Mercator tile server (for the common north-first numbering, `{z}/{x}/{reverseY}`) when `ImageryUrlTemplate` is set |
 
 `Tools/make_materials.py` regenerates `Content/Materials` (run with the Python editor plugin enabled).
 

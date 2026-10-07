@@ -126,6 +126,10 @@ void AUrvDirector::Place(AUrvVehicle* V, const FUrvEntityState& E) const
 	const FVector Nose = Georeference->TransformEarthCenteredEarthFixedDirectionToUnreal(E.QBody2Ecef.RotateVector(FVector::XAxisVector));
 	const FVector BodyZ = Georeference->TransformEarthCenteredEarthFixedDirectionToUnreal(E.QBody2Ecef.RotateVector(FVector::ZAxisVector));
 	V->SetActorLocationAndRotation(Pos, FRotationMatrix::MakeFromXZ(Nose, -BodyZ).ToQuat());
+	const double Speed = E.VelEcef.Size();
+	V->SetVelocity(Speed > 0.0
+		? Georeference->TransformEarthCenteredEarthFixedDirectionToUnreal(E.VelEcef / Speed).GetSafeNormal() * Speed * 100.0
+		: FVector::ZeroVector);
 }
 
 void AUrvDirector::SetGroundReference(const FVector& LonLatHeight, double AboveGroundM)
@@ -135,13 +139,14 @@ void AUrvDirector::SetGroundReference(const FVector& LonLatHeight, double AboveG
 	GroundRefAboveM = AboveGroundM;
 	GroundOffset = FVector::ZeroVector;
 	GroundFoundAt = -1.0;
+	bGroundFrozen = false;
 }
 
 void AUrvDirector::UpdateGroundOffset(double Now)
 {
-	// Terrain streams in coarse first and refines, so keep measuring for a while after the first hit.
-	constexpr double RefineFor = 20.0, RetryEvery = 0.1, RefineEvery = 1.0;
-	if (!bHasGroundRef || !Georeference || (GroundFoundAt > 0.0 && Now - GroundFoundAt > RefineFor))
+	// Terrain streams in coarse first and refines, so keep measuring until the vehicles move.
+	constexpr double RetryEvery = 0.1, RefineEvery = 1.0;
+	if (!bHasGroundRef || !Georeference || bGroundFrozen)
 	{
 		return;
 	}
@@ -151,17 +156,30 @@ void AUrvDirector::UpdateGroundOffset(double Now)
 	}
 	GroundLastTry = Now;
 	const FVector P = Georeference->TransformLongitudeLatitudeHeightPositionToUnreal(GroundRefLlh);
+	// The direction transform also scales metres to centimetres; keep only the direction.
 	const FVector Up = Georeference->TransformEarthCenteredEarthFixedDirectionToUnreal(
-		Georeference->TransformUnrealPositionToEarthCenteredEarthFixed(P).GetSafeNormal());
-	FHitResult Hit;
-	if (GetWorld()->LineTraceSingleByChannel(Hit, P + Up * 200000.0, P - Up * 200000.0, ECC_Visibility))
+		Georeference->TransformUnrealPositionToEarthCenteredEarthFixed(P).GetSafeNormal()).GetSafeNormal();
+	// A trace can slip through a crack between terrain tiles of different detail and hit a
+	// tile's skirt far below, so trace a few points around the reference and keep the highest.
+	const FVector Side = FVector::CrossProduct(Up, FVector::ForwardVector).GetSafeNormal() * 300.0;
+	const FVector Side2 = FVector::CrossProduct(Up, Side).GetSafeNormal() * 300.0;
+	double Best = -UE_DOUBLE_BIG_NUMBER;
+	for (const FVector& D : { FVector::ZeroVector, Side, -Side, Side2, -Side2 })
 	{
-		GroundOffset = Hit.ImpactPoint + Up * GroundRefAboveM * 100.0 - P;
+		FHitResult Hit;
+		if (GetWorld()->LineTraceSingleByChannel(Hit, P + D + Up * 200000.0, P + D - Up * 200000.0, ECC_Visibility))
+		{
+			Best = FMath::Max(Best, (Hit.ImpactPoint - P) | Up);
+		}
+	}
+	if (Best > -UE_DOUBLE_BIG_NUMBER)
+	{
+		GroundOffset = Up * (Best + GroundRefAboveM * 100.0);
 		if (GroundFoundAt < 0.0)
 		{
 			GroundFoundAt = Now;
 		}
-		UE_LOG(LogTemp, Verbose, TEXT("UnrealRocketViz: ground offset %.1f m"), (Hit.ImpactPoint - P) | Up / 100.0);
+		UE_LOG(LogTemp, Verbose, TEXT("UnrealRocketViz: ground offset %.1f m"), Best / 100.0);
 	}
 }
 
@@ -239,6 +257,10 @@ void AUrvDirector::Tick(float DeltaSeconds)
 			const double Alt = UCesiumWgs84Ellipsoid::EarthCenteredEarthFixedToLongitudeLatitudeHeight(E->PosEcef).Z;
 			V->SetEngine(E->bEngineOn, Alt);
 		}
+	}
+	if (GroundFoundAt > 0.0 && F.Entities.ContainsByPredicate([](const FUrvEntityState& E) { return E.VelEcef.SizeSquared() > 1.0; }))
+	{
+		bGroundFrozen = true;   // a shift in flight would show as a jump
 	}
 	UpdateGroundOffset(FPlatformTime::Seconds());
 	DisplayFrame = F;

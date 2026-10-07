@@ -57,6 +57,14 @@ public:
 
 	const FUrvStageLook& GetLook() const { return Look; }
 
+	// Velocity relative to the ground [Unreal cm/s]. The director sets it with the pose.
+	void SetVelocity(const FVector& InVelocityCmS) { VelocityCmS = InVelocityCmS; }
+	FVector GetVelocity() const override { return VelocityCmS; }
+	bool IsEngineOn() const { return bEngineOn; }
+	double GetAltitudeM() const { return AltitudeM; }
+	// Dynamic pressure [Pa] from speed and an exponential atmosphere.
+	double GetDynamicPressurePa() const;
+
 	// For a custom plume: attach it to this actor and drive it from here.
 	FUrvEngineEvent OnEngine;
 
@@ -68,6 +76,9 @@ private:
 	UStaticMeshComponent* AddMesh(UStaticMesh* Mesh, const FVector& CenterM, const FVector& SizeM, const FRotator& Rot);
 
 	FUrvStageLook Look;
+	FVector VelocityCmS = FVector::ZeroVector;
+	bool bEngineOn = false;
+	double AltitudeM = 0.0;
 
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> Plume;

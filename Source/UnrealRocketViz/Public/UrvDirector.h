@@ -37,7 +37,7 @@ public:
 	// Optional: shift every vehicle vertically so that this point (longitude,
 	// latitude in degrees, height in metres above WGS84) ends up AboveGroundM
 	// above the streamed terrain, e.g. a launch pad deck or a landing site.
-	// Without it, positions are drawn exactly as sent.
+	// Measured until the first entity moves. Without it, positions are drawn exactly as sent.
 	void SetGroundReference(const FVector& LonLatHeight, double AboveGroundM = 0.0);
 	// The shift SetGroundReference applies to vehicles [Unreal cm], for scenery that must move with them.
 	FVector GetGroundOffset() const { return GroundOffset; }
@@ -89,4 +89,5 @@ private:
 	FVector GroundOffset = FVector::ZeroVector;   // Unreal cm, added to every vehicle position
 	double GroundFoundAt = -1.0;                 // FPlatformTime seconds of the first hit
 	double GroundLastTry = 0.0;
+	bool bGroundFrozen = false;                  // set once anything moves
 };

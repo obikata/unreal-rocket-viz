@@ -37,6 +37,7 @@ namespace UrvScene
 			{
 				UCesiumUrlTemplateRasterOverlay* Url = NewObject<UCesiumUrlTemplateRasterOverlay>(Terrain, TEXT("Imagery"));
 				Url->TemplateUrl = Settings.ImageryUrlTemplate;
+				Url->MinimumLevel = Settings.ImageryMinimumLevel;
 				Url->MaximumLevel = Settings.ImageryMaximumLevel;
 				Imagery = Url;
 			}

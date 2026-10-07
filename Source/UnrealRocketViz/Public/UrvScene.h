@@ -12,9 +12,10 @@ struct FUrvSceneSettings
 	double TimeZone = 0.0;                              // [h]
 	int64 TerrainAssetId = 1;                           // Cesium ion: Cesium World Terrain
 	int64 ImageryAssetId = 2;                           // Cesium ion: Bing Maps Aerial
-	// Imagery from a tile server instead, e.g. "https://example.com/{z}/{x}/{y}.jpg"
-	// (Web Mercator, y from the top). Overrides ImageryAssetId when set.
+	// Imagery from a tile server instead, e.g. "https://example.com/{z}/{x}/{reverseY}.jpg"
+	// (Web Mercator; Cesium's {y} counts from the south, {reverseY} from the north). Overrides ImageryAssetId when set.
 	FString ImageryUrlTemplate;
+	int32 ImageryMinimumLevel = 0;   // the server's coarsest level, if it has no whole-world tile
 	int32 ImageryMaximumLevel = 18;
 	FString IonAccessToken;                             // empty: the project's default token
 };
