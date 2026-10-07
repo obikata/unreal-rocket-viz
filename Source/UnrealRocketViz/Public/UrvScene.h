@@ -17,6 +17,11 @@ struct FUrvSceneSettings
 	FString ImageryUrlTemplate;
 	int32 ImageryMinimumLevel = 0;   // the server's coarsest level, if it has no whole-world tile
 	int32 ImageryMaximumLevel = 18;
+
+	// Streaming: no holes while finer tiles load, more tiles in flight, a larger cache.
+	bool bForbidHoles = true;
+	int32 MaxSimultaneousTileLoads = 48;
+	int64 CacheMegabytes = 1024;
 	FString IonAccessToken;                             // empty: the project's default token
 };
 

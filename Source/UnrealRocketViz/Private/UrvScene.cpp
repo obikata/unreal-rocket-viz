@@ -32,6 +32,10 @@ namespace UrvScene
 			{
 				Terrain->SetIonAccessToken(Settings.IonAccessToken);
 			}
+			Terrain->ForbidHoles = Settings.bForbidHoles;
+			Terrain->MaximumSimultaneousTileLoads = Settings.MaxSimultaneousTileLoads;
+			Terrain->LoadingDescendantLimit = 2 * Settings.MaxSimultaneousTileLoads;
+			Terrain->MaximumCachedBytes = Settings.CacheMegabytes * 1024 * 1024;
 			UCesiumRasterOverlay* Imagery = nullptr;
 			if (!Settings.ImageryUrlTemplate.IsEmpty())
 			{
@@ -48,6 +52,7 @@ namespace UrvScene
 				Ion->IonAccessToken = Settings.IonAccessToken;
 				Imagery = Ion;
 			}
+			Imagery->SetMaximumSimultaneousTileLoads(Settings.MaxSimultaneousTileLoads);
 			Terrain->AddInstanceComponent(Imagery);
 			Imagery->RegisterComponent();
 			Imagery->AddToTileset();
