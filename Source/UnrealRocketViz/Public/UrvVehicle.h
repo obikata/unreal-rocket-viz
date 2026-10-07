@@ -30,12 +30,18 @@ struct FUrvStageLook
 	// Its root always stays inside the nozzle exit.
 	UPROPERTY(EditAnywhere) double PlumeVacuumLength = 0.8;
 
+	// false: draw no plume here and leave it to an OnEngine listener.
+	UPROPERTY(EditAnywhere) bool bBuiltInPlume = true;
+
 	// All placed with the same transform, so parts modelled in one frame stay assembled.
 	UPROPERTY(EditAnywhere) TArray<TSoftObjectPtr<UStaticMesh>> Meshes;
 	UPROPERTY(EditAnywhere) FVector MeshOffsetM = FVector::ZeroVector;      // mesh pivot in actor space [m]
 	UPROPERTY(EditAnywhere) FRotator MeshRotation = FRotator::ZeroRotator;  // turns the meshes' axes onto +X = nose
 	UPROPERTY(EditAnywhere) double MeshScale = 1.0;                          // on top of the meshes' own units
 };
+
+// Engine state for a stage, every frame: on/off and altitude [m].
+DECLARE_MULTICAST_DELEGATE_TwoParams(FUrvEngineEvent, bool /*bOn*/, double /*AltitudeM*/);
 
 UCLASS()
 class UNREALROCKETVIZ_API AUrvVehicle : public AActor
@@ -46,8 +52,13 @@ public:
 	AUrvVehicle();
 
 	void Build(const FUrvStageLook& InLook);
-	// The plume lengthens and fans out as the air thins.
+	// The plume lengthens as the air thins. Also broadcasts OnEngine.
 	void SetEngine(bool bOn, double AltitudeM);
+
+	const FUrvStageLook& GetLook() const { return Look; }
+
+	// For a custom plume: attach it to this actor and drive it from here.
+	FUrvEngineEvent OnEngine;
 
 private:
 	void BuildProceduralBody();

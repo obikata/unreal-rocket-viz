@@ -112,7 +112,10 @@ void AUrvVehicle::Build(const FUrvStageLook& InLook)
 	{
 		BuildProceduralBody();
 	}
-	BuildPlume();
+	if (Look.bBuiltInPlume)
+	{
+		BuildPlume();
+	}
 }
 
 void AUrvVehicle::BuildProceduralBody()
@@ -167,9 +170,10 @@ void AUrvVehicle::BuildPlume()
 
 void AUrvVehicle::SetEngine(bool bOn, double AltitudeM)
 {
+	OnEngine.Broadcast(bOn, AltitudeM);
 	if (!Plume)
 	{
-		return;
+		return;   // no built-in plume
 	}
 	Plume->SetVisibility(bOn);
 	PlumeCore->SetVisibility(bOn);
