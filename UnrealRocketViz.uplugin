@@ -1,0 +1,15 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1.0",
+	"FriendlyName": "UnrealRocketViz",
+	"Description": "Draws a launch vehicle on a Cesium globe from time-stamped ECEF states.",
+	"Category": "Visualization",
+	"CanContainContent": true,
+	"Modules": [
+		{ "Name": "UnrealRocketViz", "Type": "Runtime", "LoadingPhase": "Default" }
+	],
+	"Plugins": [
+		{ "Name": "CesiumForUnreal", "Enabled": true }
+	]
+}

@@ -1,0 +1,59 @@
+#pragma once
+
+#include "CoreMinimal.h"
+#include "GameFramework/Actor.h"
+#include "UrvVehicle.generated.h"
+
+class UStaticMeshComponent;
+class UPointLightComponent;
+class UMaterialInstanceDynamic;
+
+// Simple procedural look of one stage, in metres. The actor origin is the
+// point the state refers to; +X is the nose. The body spans X = StartX .. StartX + Length.
+USTRUCT(BlueprintType)
+struct FUrvStageLook
+{
+	GENERATED_BODY()
+
+	UPROPERTY(EditAnywhere) double StartX = 0.0;
+	UPROPERTY(EditAnywhere) double Length = 10.0;
+	UPROPERTY(EditAnywhere) double Diameter = 2.0;
+	UPROPERTY(EditAnywhere) double NoseLength = 0.0;     // cone on top, 0 = none
+	UPROPERTY(EditAnywhere) int32 Fins = 0;
+	UPROPERTY(EditAnywhere) double BellDiameter = 1.0;
+	UPROPERTY(EditAnywhere) double PlumeLength = 10.0;   // at sea level
+	// How much the plume lengthens once the air is gone (above about 40 km): 0.8 means +80 %.
+	// Its root always stays inside the nozzle exit.
+	UPROPERTY(EditAnywhere) double PlumeVacuumLength = 0.8;
+};
+
+UCLASS()
+class UNREALROCKETVIZ_API AUrvVehicle : public AActor
+{
+	GENERATED_BODY()
+
+public:
+	AUrvVehicle();
+
+	void Build(const FUrvStageLook& InLook);
+	// The plume lengthens and fans out as the air thins.
+	void SetEngine(bool bOn, double AltitudeM);
+
+private:
+	void Paint(UStaticMeshComponent* C, const FLinearColor& Color, float Roughness);
+	UStaticMeshComponent* AddMesh(UStaticMesh* Mesh, const FVector& CenterM, const FVector& SizeM, const FRotator& Rot);
+
+	FUrvStageLook Look;
+
+	UPROPERTY() TObjectPtr<USceneComponent> Root;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> Plume;
+	UPROPERTY() TObjectPtr<UStaticMeshComponent> PlumeCore;   // short, hotter inner cone
+	UPROPERTY() TObjectPtr<UPointLightComponent> Glow;
+	UPROPERTY() TObjectPtr<UStaticMesh> Cylinder;
+	UPROPERTY() TObjectPtr<UStaticMesh> Cone;
+	UPROPERTY() TObjectPtr<UStaticMesh> Cube;
+	UPROPERTY() TObjectPtr<UMaterialInterface> PlumeMaterial;
+	UPROPERTY() TObjectPtr<UMaterialInterface> HullMaterial;
+	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> PlumeMid;
+	UPROPERTY() TObjectPtr<UMaterialInstanceDynamic> CoreMid;
+};
