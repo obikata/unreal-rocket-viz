@@ -45,6 +45,7 @@ class UNREALROCKETVIZ_API AUrvHud : public AHUD
 public:
 	TObjectPtr<AUrvDirector> Director;
 	FString MissionName;            // e.g. TEXT("試験飛行")
+	FString Credit;                 // small print at the lower right, e.g. imagery attribution
 	TArray<FUrvGaugeGroup> Groups;  // index = chase camera target
 	TArray<FUrvMilestone> Milestones;
 	// Placed alternately left and right of the clock, inside out.

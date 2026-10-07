@@ -12,11 +12,15 @@ struct FUrvSceneSettings
 	double TimeZone = 0.0;                              // [h]
 	int64 TerrainAssetId = 1;                           // Cesium ion: Cesium World Terrain
 	int64 ImageryAssetId = 2;                           // Cesium ion: Bing Maps Aerial
+	// Imagery from a tile server instead, e.g. "https://example.com/{z}/{x}/{y}.jpg"
+	// (Web Mercator, y from the top). Overrides ImageryAssetId when set.
+	FString ImageryUrlTemplate;
+	int32 ImageryMaximumLevel = 18;
 	FString IonAccessToken;                             // empty: the project's default token
 };
 
 // Puts a Cesium globe, sun and sky into the world unless the level already has them.
-// Tiles stream from Cesium ion with the project's default token.
+// Terrain streams from Cesium ion; imagery from ion or from a tile server.
 namespace UrvScene
 {
 	UNREALROCKETVIZ_API ACesiumGeoreference* Setup(UWorld* World, AActor* Context, const FUrvSceneSettings& Settings);
