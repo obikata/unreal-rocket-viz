@@ -34,7 +34,7 @@ Positions are drawn exactly as sent. To stand a site such as a launch pad or a l
 
 A stage is drawn procedurally from `FUrvStageLook`, or from your own meshes: list them in `FUrvStageLook::Meshes` with one shared offset, rotation and scale, so parts modelled in one frame stay assembled. `StartX` and `BellDiameter` still place the plume, so set them to match the meshes' nozzle exit.
 
-The overlay shows the mission clock with the readouts in `AUrvHud::Readouts` either side of it (default: `speed_kmh` and `altitude_km`), and the display name of the latest event from `AUrvHud::Milestones`. Engine on-screen debug messages are not touched; run `DisableAllScreenMessages` if they get in the way.
+The overlay shows the mission clock with the readouts in `AUrvHud::Readouts` either side of it (default: `speed_kmh` and `altitude_km`), and the display name of the latest event from `AUrvHud::Milestones`. Engine on-screen debug messages are not touched; run `DisableAllScreenMessages` if they get in the way. `AUrvHud::Credit`, when set, is printed small at the lower right (for imagery attribution).
 
 | Class | Role |
 |---|---|
@@ -42,7 +42,7 @@ The overlay shows the mission clock with the readouts in `AUrvHud::Readouts` eit
 | `AUrvVehicle` | Procedural vehicle look and exhaust plume |
 | `AUrvChasePawn` | Chase camera: left-drag orbits, wheel zooms, keys 1–9 pick the target |
 | `AUrvHud` | Overlay: speed, mission clock, altitude, latest event |
-| `UrvScene::Setup` | Adds a Cesium georeference, terrain, imagery, sun and sky |
+| `UrvScene::Setup` | Adds a Cesium georeference, terrain, imagery, sun and sky. Imagery is a Cesium ion asset, or any `{z}/{x}/{y}` Web Mercator tile server when `ImageryUrlTemplate` is set |
 
 `Tools/make_materials.py` regenerates `Content/Materials` (run with the Python editor plugin enabled).
 
