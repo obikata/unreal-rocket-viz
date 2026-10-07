@@ -128,10 +128,11 @@ void AUrvDirector::Place(AUrvVehicle* V, const FUrvEntityState& E) const
 	V->SetActorLocationAndRotation(Pos, FRotationMatrix::MakeFromXZ(Nose, -BodyZ).ToQuat());
 }
 
-void AUrvDirector::SetGroundReference(const FVector& LonLatHeight)
+void AUrvDirector::SetGroundReference(const FVector& LonLatHeight, double AboveGroundM)
 {
 	bHasGroundRef = true;
 	GroundRefLlh = LonLatHeight;
+	GroundRefAboveM = AboveGroundM;
 	GroundOffset = FVector::ZeroVector;
 	GroundFoundAt = -1.0;
 }
@@ -155,7 +156,7 @@ void AUrvDirector::UpdateGroundOffset(double Now)
 	FHitResult Hit;
 	if (GetWorld()->LineTraceSingleByChannel(Hit, P + Up * 200000.0, P - Up * 200000.0, ECC_Visibility))
 	{
-		GroundOffset = Hit.ImpactPoint - P;
+		GroundOffset = Hit.ImpactPoint + Up * GroundRefAboveM * 100.0 - P;
 		if (GroundFoundAt < 0.0)
 		{
 			GroundFoundAt = Now;

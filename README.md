@@ -30,7 +30,9 @@ Director->PushEvent(T, TEXT("LIFTOFF"));
 
 The director keeps a short buffer, plays it about 100 ms behind the newest frame and interpolates (position linear, attitude slerp). Each entity id is bound to an `AUrvVehicle` with `AUrvDirector::Bind`.
 
-Positions are drawn exactly as sent. To stand a site such as a launch pad or a landing zone on the streamed terrain, call `AUrvDirector::SetGroundReference(LonLatHeight)`; every vehicle is then shifted by the difference between that point and the terrain under it.
+Positions are drawn exactly as sent. To stand a site such as a launch pad or a landing zone on the streamed terrain, call `AUrvDirector::SetGroundReference(LonLatHeight, AboveGroundM)`; every vehicle is then shifted so that point ends up `AboveGroundM` above the terrain under it. `GetGroundOffset()` returns the shift, for scenery that has to move with the vehicles.
+
+A stage is drawn procedurally from `FUrvStageLook`, or from your own meshes: list them in `FUrvStageLook::Meshes` with one shared offset, rotation and scale, so parts modelled in one frame stay assembled. `StartX` and `BellDiameter` still place the plume, so set them to match the meshes' nozzle exit.
 
 The overlay shows the mission clock with the readouts in `AUrvHud::Readouts` either side of it (default: `speed_kmh` and `altitude_km`), and the display name of the latest event from `AUrvHud::Milestones`. Engine on-screen debug messages are not touched; run `DisableAllScreenMessages` if they get in the way.
 

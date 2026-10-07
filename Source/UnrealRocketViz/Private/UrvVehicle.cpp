@@ -80,9 +80,43 @@ void AUrvVehicle::Paint(UStaticMeshComponent* C, const FLinearColor& Color, floa
 	C->SetMaterial(0, Mid);
 }
 
+// Returns false when none of the meshes could be loaded.
+bool AUrvVehicle::BuildMeshBody()
+{
+	int32 Loaded = 0;
+	for (const TSoftObjectPtr<UStaticMesh>& Ref : Look.Meshes)
+	{
+		UStaticMesh* Mesh = Ref.LoadSynchronous();
+		if (!Mesh)
+		{
+			UE_LOG(LogTemp, Warning, TEXT("UnrealRocketViz: mesh %s not found"), *Ref.ToString());
+			continue;
+		}
+		UStaticMeshComponent* C = NewObject<UStaticMeshComponent>(this);
+		C->SetupAttachment(Root);
+		C->SetStaticMesh(Mesh);   // keeps the mesh's own materials
+		C->SetRelativeLocation(Look.MeshOffsetM * CmPerM);
+		C->SetRelativeRotation(Look.MeshRotation);
+		C->SetRelativeScale3D(FVector(Look.MeshScale));
+		C->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		C->RegisterComponent();
+		++Loaded;
+	}
+	return Loaded > 0;
+}
+
 void AUrvVehicle::Build(const FUrvStageLook& InLook)
 {
 	Look = InLook;
+	if (Look.Meshes.Num() == 0 || !BuildMeshBody())
+	{
+		BuildProceduralBody();
+	}
+	BuildPlume();
+}
+
+void AUrvVehicle::BuildProceduralBody()
+{
 	const double X0 = Look.StartX, D = Look.Diameter;
 	AddMesh(Cylinder, FVector(X0 + Look.Length / 2, 0, 0), FVector(D, D, Look.Length), TipForward);
 	if (Look.NoseLength > 0.0)
@@ -105,7 +139,11 @@ void AUrvVehicle::Build(const FUrvStageLook& InLook)
 	Paint(AddMesh(Cylinder, FVector(X0 + Skirt / 2, 0, 0), FVector(D * 1.01, D * 1.01, Skirt), TipForward), Charcoal, 0.6f);
 	const double Band = FMath::Min(0.06 * Look.Length, 1.2);
 	Paint(AddMesh(Cylinder, FVector(X0 + Look.Length - Band / 2, 0, 0), FVector(D * 1.01, D * 1.01, Band), TipForward), Charcoal, 0.6f);
+}
 
+void AUrvVehicle::BuildPlume()
+{
+	const double X0 = Look.StartX, B = Look.BellDiameter;
 	PlumeMid = MakePlumeMid(PlumeMaterial, this, 25.0f * DaylightNits, FLinearColor(1.0f, 0.38f, 0.06f));
 	CoreMid = MakePlumeMid(PlumeMaterial, this, 60.0f * DaylightNits, FLinearColor(1.0f, 0.75f, 0.3f));
 	Plume = AddMesh(Cone, FVector::ZeroVector, FVector::OneVector, TipAft);
