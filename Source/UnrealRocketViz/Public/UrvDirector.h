@@ -39,6 +39,12 @@ public:
 	// above the streamed terrain, e.g. a launch pad deck or a landing site.
 	// The terrain height comes from its most detailed tiles. Without it, positions are drawn exactly as sent.
 	void SetGroundReference(const FVector& LonLatHeight, double AboveGroundM = 0.0);
+	// The same, with the point taken from where entity EntityId is in the first frame that
+	// carries it: that entity then stands AboveGroundM above the terrain, whatever height
+	// the sender put its pad at.
+	void SetGroundReferenceFromEntity(int32 EntityId, double AboveGroundM = 0.0);
+	// The reference point in use (degrees, degrees, metres); known once HasGround().
+	FVector GetGroundReferenceLonLatHeight() const { return GroundRefLlh; }
 	// The shift SetGroundReference applies to vehicles [Unreal cm], for scenery that must move with them.
 	FVector GetGroundOffset() const { return GroundOffset; }
 	bool HasGround() const { return bGroundFound; }
@@ -95,5 +101,6 @@ private:
 	FVector GroundOffset = FVector::ZeroVector;   // Unreal cm, added to every vehicle position
 	double GroundLastTry = 0.0;
 	bool bGroundAsked = false;
+	int32 GroundRefEntity = -1;   // >= 0: the reference point is still to be taken from this entity
 	bool bGroundFound = false;
 };

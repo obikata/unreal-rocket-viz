@@ -163,11 +163,27 @@ void AUrvDirector::SampleGround(const FVector& WorldPos, TFunction<void(bool, co
 			}));
 }
 
+void AUrvDirector::SetGroundReferenceFromEntity(int32 EntityId, double AboveGroundM)
+{
+	SetGroundReference(FVector::ZeroVector, AboveGroundM);
+	GroundRefEntity = EntityId;
+}
+
 void AUrvDirector::UpdateGroundOffset(double Now)
 {
 	if (!bHasGroundRef || !Georeference || bGroundAsked || bGroundFound || Now - GroundLastTry < 1.0)
 	{
 		return;
+	}
+	if (GroundRefEntity >= 0)
+	{
+		const FUrvEntityState* E = bHaveDisplay ? DisplayFrame.Find(GroundRefEntity) : nullptr;
+		if (!E)
+		{
+			return;   // wait for the first frame carrying it
+		}
+		GroundRefLlh = UCesiumWgs84Ellipsoid::EarthCenteredEarthFixedToLongitudeLatitudeHeight(E->PosEcef);
+		GroundRefEntity = -1;
 	}
 	GroundLastTry = Now;
 	bGroundAsked = true;
