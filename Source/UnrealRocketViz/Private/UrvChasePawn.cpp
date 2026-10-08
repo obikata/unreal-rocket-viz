@@ -258,7 +258,7 @@ void AUrvChasePawn::Tick(float DeltaSeconds)
 	{
 	case EUrvView::Drone:
 		TickDrone(T, DeltaSeconds, Loc, Rot);
-		Rot += Shake(Clock, 0.04 * Loud, 9.0);   // the gimbal absorbs most of it
+		Rot += Shake(Clock, 0.012 * Loud, 9.0);   // the gimbal absorbs most of it
 		break;
 	case EUrvView::Onboard:
 		if (TickOnboard(T, Loc, Rot, Vibration))
@@ -270,7 +270,7 @@ void AUrvChasePawn::Tick(float DeltaSeconds)
 		[[fallthrough]];
 	default:
 		TickChase(T, Loc, Rot);
-		Rot += Shake(Clock, 0.35 * Loud, 7.0);
+		Rot += Shake(Clock, 0.08 * Loud, 7.0);
 		break;
 	}
 	SetPanini(Panini);

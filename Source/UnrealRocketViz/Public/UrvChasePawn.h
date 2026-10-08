@@ -44,8 +44,8 @@ struct FUrvMountedCamera
 	FRotator Rotation = FRotator::ZeroRotator;  // in the vehicle's frame; the camera looks along its +X
 	float FovDeg = 120.0f;
 	float Panini = 0.6f;                        // wide-angle projection (r.Upscale.Panini.D), 0 = rectilinear
-	double VibrationDeg = 0.12;                 // with the engine on
-	double VibrationPerKPaDeg = 0.02;           // added per kPa of dynamic pressure
+	double VibrationDeg = 0.03;                 // with the engine on
+	double VibrationPerKPaDeg = 0.004;          // added per kPa of dynamic pressure
 };
 
 // A cut in an automatic camera plan: from SimTime on, show View on target Target.
