@@ -285,5 +285,9 @@ int32 SUrvHudOverlay::OnPaint(const FPaintArgs& Args, const FGeometry& Geo, cons
 	FPainter P{Out, Geo, &Layer, F, S};
 	P.Alpha = float(Smooth((Now - FirstFrameTime) / 0.8));
 	Readouts(P, *H, *Frame, H->GetFollowedIndex(), Size.X, Size.Y, Now);
+	if (!H->Credit.IsEmpty())
+	{
+		P.Text(H->Credit, EFace::Gothic, 9.0, Size.X - 20.0 * S, Size.Y - 14.0 * S, Soft, EAlign::Right);
+	}
 	return Layer;
 }

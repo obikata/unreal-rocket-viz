@@ -35,10 +35,18 @@ public:
 	void SetLinkStatus(const FString& Text);
 
 	// Optional: shift every vehicle vertically so that this point (longitude,
-	// latitude in degrees, height in metres above WGS84) sits on the streamed
-	// terrain, e.g. the launch pad or the landing site. Without it, positions
-	// are drawn exactly as sent.
-	void SetGroundReference(const FVector& LonLatHeight);
+	// latitude in degrees, height in metres above WGS84) ends up AboveGroundM
+	// above the streamed terrain, e.g. a launch pad deck or a landing site.
+	// The terrain height comes from its most detailed tiles. Without it, positions are drawn exactly as sent.
+	void SetGroundReference(const FVector& LonLatHeight, double AboveGroundM = 0.0);
+	// The shift SetGroundReference applies to vehicles [Unreal cm], for scenery that must move with them.
+	FVector GetGroundOffset() const { return GroundOffset; }
+	bool HasGround() const { return bGroundFound; }
+
+	// The streamed terrain's surface under (or over) WorldPos, from its most detailed tiles,
+	// independent of what is loaded or drawn. Asynchronous; OnGround runs on the game thread
+	// with false if there is no terrain there.
+	void SampleGround(const FVector& WorldPos, TFunction<void(bool bOk, const FVector& GroundWorld)> OnGround);
 
 	virtual void Tick(float DeltaSeconds) override;
 
@@ -83,7 +91,9 @@ private:
 	bool bHaveEvent = false;
 	bool bHasGroundRef = false;
 	FVector GroundRefLlh = FVector::ZeroVector;
+	double GroundRefAboveM = 0.0;
 	FVector GroundOffset = FVector::ZeroVector;   // Unreal cm, added to every vehicle position
-	double GroundFoundAt = -1.0;                 // FPlatformTime seconds of the first hit
 	double GroundLastTry = 0.0;
+	bool bGroundAsked = false;
+	bool bGroundFound = false;
 };

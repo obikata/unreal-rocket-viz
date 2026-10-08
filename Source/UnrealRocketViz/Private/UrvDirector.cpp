@@ -1,6 +1,9 @@
 #include "UrvDirector.h"
 
+#include "Cesium3DTileset.h"
 #include "CesiumGeoreference.h"
+#include "CesiumSampleHeightResult.h"
+#include "EngineUtils.h"
 #include "CesiumWgs84Ellipsoid.h"
 #include "Engine/Engine.h"
 #include "Engine/World.h"
@@ -126,42 +129,67 @@ void AUrvDirector::Place(AUrvVehicle* V, const FUrvEntityState& E) const
 	const FVector Nose = Georeference->TransformEarthCenteredEarthFixedDirectionToUnreal(E.QBody2Ecef.RotateVector(FVector::XAxisVector));
 	const FVector BodyZ = Georeference->TransformEarthCenteredEarthFixedDirectionToUnreal(E.QBody2Ecef.RotateVector(FVector::ZAxisVector));
 	V->SetActorLocationAndRotation(Pos, FRotationMatrix::MakeFromXZ(Nose, -BodyZ).ToQuat());
+	const double Speed = E.VelEcef.Size();
+	V->SetVelocity(Speed > 0.0
+		? Georeference->TransformEarthCenteredEarthFixedDirectionToUnreal(E.VelEcef / Speed).GetSafeNormal() * Speed * 100.0
+		: FVector::ZeroVector);
 }
 
-void AUrvDirector::SetGroundReference(const FVector& LonLatHeight)
+void AUrvDirector::SetGroundReference(const FVector& LonLatHeight, double AboveGroundM)
 {
 	bHasGroundRef = true;
 	GroundRefLlh = LonLatHeight;
+	GroundRefAboveM = AboveGroundM;
 	GroundOffset = FVector::ZeroVector;
-	GroundFoundAt = -1.0;
+	bGroundFound = false;
+	bGroundAsked = false;
+}
+
+void AUrvDirector::SampleGround(const FVector& WorldPos, TFunction<void(bool, const FVector&)> OnGround)
+{
+	TActorIterator<ACesium3DTileset> Terrain(GetWorld());
+	if (!Terrain || !Georeference)
+	{
+		OnGround(false, WorldPos);
+		return;
+	}
+	TWeakObjectPtr<ACesiumGeoreference> Geo = Georeference;
+	Terrain->SampleHeightMostDetailed({ Georeference->TransformUnrealPositionToLongitudeLatitudeHeight(WorldPos) },
+		FCesiumSampleHeightMostDetailedCallback::CreateLambda(
+			[Geo, WorldPos, OnGround](ACesium3DTileset*, const TArray<FCesiumSampleHeightResult>& R, const TArray<FString>&)
+			{
+				const bool bOk = Geo.IsValid() && R.Num() == 1 && R[0].SampleSuccess;
+				OnGround(bOk, bOk ? Geo->TransformLongitudeLatitudeHeightPositionToUnreal(R[0].LongitudeLatitudeHeight) : WorldPos);
+			}));
 }
 
 void AUrvDirector::UpdateGroundOffset(double Now)
 {
-	// Terrain streams in coarse first and refines, so keep measuring for a while after the first hit.
-	constexpr double RefineFor = 20.0, RetryEvery = 0.1, RefineEvery = 1.0;
-	if (!bHasGroundRef || !Georeference || (GroundFoundAt > 0.0 && Now - GroundFoundAt > RefineFor))
-	{
-		return;
-	}
-	if (Now - GroundLastTry < (GroundFoundAt > 0.0 ? RefineEvery : RetryEvery))
+	if (!bHasGroundRef || !Georeference || bGroundAsked || bGroundFound || Now - GroundLastTry < 1.0)
 	{
 		return;
 	}
 	GroundLastTry = Now;
+	bGroundAsked = true;
 	const FVector P = Georeference->TransformLongitudeLatitudeHeightPositionToUnreal(GroundRefLlh);
+	// The direction transform also scales metres to centimetres; keep only the direction.
 	const FVector Up = Georeference->TransformEarthCenteredEarthFixedDirectionToUnreal(
-		Georeference->TransformUnrealPositionToEarthCenteredEarthFixed(P).GetSafeNormal());
-	FHitResult Hit;
-	if (GetWorld()->LineTraceSingleByChannel(Hit, P + Up * 200000.0, P - Up * 200000.0, ECC_Visibility))
+		Georeference->TransformUnrealPositionToEarthCenteredEarthFixed(P).GetSafeNormal()).GetSafeNormal();
+	TWeakObjectPtr<AUrvDirector> Self(this);
+	SampleGround(P, [Self, P, Up](bool bOk, const FVector& Ground)
 	{
-		GroundOffset = Hit.ImpactPoint - P;
-		if (GroundFoundAt < 0.0)
+		if (!Self.IsValid())
 		{
-			GroundFoundAt = Now;
+			return;
 		}
-		UE_LOG(LogTemp, Verbose, TEXT("UnrealRocketViz: ground offset %.1f m"), (Hit.ImpactPoint - P) | Up / 100.0);
-	}
+		Self->bGroundAsked = false;   // on failure, ask again a second later
+		if (bOk)
+		{
+			Self->GroundOffset = Up * (((Ground - P) | Up) + Self->GroundRefAboveM * 100.0);
+			Self->bGroundFound = true;
+			UE_LOG(LogTemp, Log, TEXT("UnrealRocketViz: ground %.1f m from the reference"), ((Ground - P) | Up) / 100.0);
+		}
+	});
 }
 
 void AUrvDirector::DrawHud(const FUrvFrame& F) const

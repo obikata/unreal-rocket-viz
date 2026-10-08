@@ -3,6 +3,7 @@
 #include "Cesium3DTileset.h"
 #include "CesiumGeoreference.h"
 #include "CesiumIonRasterOverlay.h"
+#include "CesiumUrlTemplateRasterOverlay.h"
 #include "CesiumSunSky.h"
 #include "Engine/World.h"
 #include "GameFramework/WorldSettings.h"
@@ -31,9 +32,27 @@ namespace UrvScene
 			{
 				Terrain->SetIonAccessToken(Settings.IonAccessToken);
 			}
-			UCesiumIonRasterOverlay* Imagery = NewObject<UCesiumIonRasterOverlay>(Terrain, TEXT("Imagery"));
-			Imagery->IonAssetID = Settings.ImageryAssetId;
-			Imagery->IonAccessToken = Settings.IonAccessToken;
+			Terrain->ForbidHoles = Settings.bForbidHoles;
+			Terrain->MaximumSimultaneousTileLoads = Settings.MaxSimultaneousTileLoads;
+			Terrain->LoadingDescendantLimit = 2 * Settings.MaxSimultaneousTileLoads;
+			Terrain->MaximumCachedBytes = Settings.CacheMegabytes * 1024 * 1024;
+			UCesiumRasterOverlay* Imagery = nullptr;
+			if (!Settings.ImageryUrlTemplate.IsEmpty())
+			{
+				UCesiumUrlTemplateRasterOverlay* Url = NewObject<UCesiumUrlTemplateRasterOverlay>(Terrain, TEXT("Imagery"));
+				Url->TemplateUrl = Settings.ImageryUrlTemplate;
+				Url->MinimumLevel = Settings.ImageryMinimumLevel;
+				Url->MaximumLevel = Settings.ImageryMaximumLevel;
+				Imagery = Url;
+			}
+			else
+			{
+				UCesiumIonRasterOverlay* Ion = NewObject<UCesiumIonRasterOverlay>(Terrain, TEXT("Imagery"));
+				Ion->IonAssetID = Settings.ImageryAssetId;
+				Ion->IonAccessToken = Settings.IonAccessToken;
+				Imagery = Ion;
+			}
+			Imagery->SetMaximumSimultaneousTileLoads(Settings.MaxSimultaneousTileLoads);
 			Terrain->AddInstanceComponent(Imagery);
 			Imagery->RegisterComponent();
 			Imagery->AddToTileset();
