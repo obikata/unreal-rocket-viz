@@ -81,6 +81,7 @@ public:
 	TArray<FUrvMountedCamera> Mounts;   // index = target; a target without one has no onboard view
 	TArray<FUrvCut> Cuts;               // in time order
 	bool bAutoCuts = true;
+	bool bAcceptInput = true;   // false: keys and mouse leave the camera alone (unattended capture)
 
 	// Sim time for Cuts.
 	UPROPERTY()

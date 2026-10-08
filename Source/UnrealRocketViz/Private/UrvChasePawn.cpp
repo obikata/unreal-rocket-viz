@@ -71,7 +71,7 @@ const AUrvVehicle* AUrvChasePawn::GetOnboardVehicle() const
 void AUrvChasePawn::HandleInput()
 {
 	APlayerController* PC = Cast<APlayerController>(GetController());
-	if (!PC)
+	if (!PC || !bAcceptInput)
 	{
 		return;
 	}
