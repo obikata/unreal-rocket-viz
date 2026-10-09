@@ -36,6 +36,15 @@ A stage is drawn procedurally from `FUrvStageLook`, or from your own meshes: lis
 
 The overlay shows the mission clock with the readouts in `AUrvHud::Readouts` either side of it (default: `speed_kmh` and `altitude_km`), and the display name of the latest event from `AUrvHud::Milestones`. Engine on-screen debug messages are not touched; run `DisableAllScreenMessages` if they get in the way. `AUrvHud::Credit`, when set, is printed small at the lower right (for imagery attribution).
 
+### Live from a simulator (UDP)
+
+Set a level's GameMode to `AUrvLiveGameMode`, press Play and start any sender of
+the [URV wire protocol](Docs/wire-protocol.md) — the scene, vehicles, HUD and
+ground reference are built from what the sender broadcasts. See
+[Docs/live-sim.md](Docs/live-sim.md). `Tools/urv_wire.py` is a stdlib-only
+reference encoder for senders; `python -m pytest Tests` checks it and the C++
+decoder (`UrvWire.h`, no Unreal dependency) against the golden packets.
+
 | Class | Role |
 |---|---|
 | `AUrvDirector` | Buffers frames and events, places the bound vehicles |
@@ -43,6 +52,8 @@ The overlay shows the mission clock with the readouts in `AUrvHud::Readouts` eit
 | `AUrvChasePawn` | Camera with three views: chase (left-drag orbits, wheel zooms), drone (`FUrvDroneCamera`: hovers, climbs, gimbal and zoom track the target) and onboard (`FUrvMountedCamera` per target). Keys 1–9 pick the target, V cycles the views, A resumes the plan in `Cuts` |
 | `AUrvSoundscape` | Synthesised engine noise at the camera: delayed by the speed of sound, quieter and duller with distance; drives the camera shake |
 | `AUrvHud` | Overlay: speed, mission clock, altitude, latest event |
+| `AUrvUdpReceiver` | Subscribes to URV datagrams (multicast or unicast) on its own thread and feeds a director; SCENEs go to `OnScene` |
+| `AUrvLiveGameMode` | Empty level → live viewer: director, receiver, globe, vehicles, camera, HUD from the SCENE |
 | `UrvScene::Setup` | Adds a Cesium georeference, terrain, imagery, sun and sky. Imagery is a Cesium ion asset, or any Web Mercator tile server (for the common north-first numbering, `{z}/{x}/{reverseY}`) when `ImageryUrlTemplate` is set |
 
 `Tools/make_materials.py` regenerates `Content/Materials` (run with the Python editor plugin enabled).
