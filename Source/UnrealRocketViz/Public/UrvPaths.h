@@ -15,7 +15,7 @@ struct FUrvPathStyle
 {
 	FString Name;                                       // the PATH name, e.g. "plan"
 	FString Label;                                      // e.g. "GUIDANCE PLAN"
-	FLinearColor Color = FLinearColor(0.22f, 0.74f, 0.97f);
+	FLinearColor Color = FLinearColor(1.00f, 0.17f, 0.84f);   // magenta: the active route, as on a flight display
 	bool bDashed = false;
 	int32 Ghosts = 6;                                   // earlier versions kept, fading
 };
@@ -46,7 +46,7 @@ public:
 	TObjectPtr<AUrvDirector> Director;
 
 	TArray<FUrvPathStyle> Styles;
-	// Trail colour: this channel mapped green -> amber -> red over [0, TrailMax]; None: white.
+	// Trail colour: this channel mapped white -> amber -> red over [0, TrailMax]; None: white.
 	FName TrailChannel;
 	double TrailMax = 1.0;
 
@@ -56,8 +56,7 @@ public:
 	// ~2000 nits, like the plume): 1 is about as bright as a sunlit white surface.
 	float Glow = 3.0f;
 	double LinePixels = 26.0;       // on-screen width of the newest path's ribbon, glow included [px]
-	float Pastel = 0.35f;           // colours lightened toward white by this much (0: as given)
-	float Opacity = 0.7f;           // of the newest path; ghosts and the trail scale from it
+	float Opacity = 0.95f;          // of the newest path; ghosts and the trail scale from it
 	double TrailSpacing = 0.1;      // [s] of sim time between trail points
 	int32 TrailMaxPoints = 6000;
 

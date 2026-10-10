@@ -115,7 +115,7 @@ the content changes.
     {"channel": "altitude_m", "label": "ALTITUDE", "unit": "M", "decimals": 0, "max": 5000}
   ],
   "paths": [
-    {"name": "plan", "label": "GUIDANCE PLAN", "color": "#38BDF8", "dashed": false, "ghosts": 6}
+    {"name": "plan", "label": "GUIDANCE PLAN", "color": "#FF2BD6", "dashed": false, "ghosts": 6}
   ],
   "trail": {"channel": "tracking_err_m", "max": 1.0},
   "milestones": [
@@ -140,7 +140,7 @@ the content changes.
 - `paths` (optional): how PATHs of each `name` are drawn (`color` hex, `dashed`,
   `ghosts` = earlier versions kept). A PATH with no entry is drawn in a default style.
 - `trail` (optional): the viewer draws each entity's flown trail; with `channel`
-  it is coloured green → amber → red over `[0, max]` of that channel.
+  it is coloured white → amber → red over `[0, max]` of that channel.
 
 Unknown JSON keys are ignored, so senders may add fields without a version bump.
 Any change to the binary layout bumps `version`.
