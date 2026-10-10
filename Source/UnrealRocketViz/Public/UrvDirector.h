@@ -84,6 +84,8 @@ private:
 	// Shared with the feeding thread.
 	mutable FCriticalSection Lock;
 	TArray<FUrvFrame> Buffer;
+	double LastPushAt = 0.0;   // FPlatformTime::Seconds() of the newest PushFrame
+	double PushInterval = 0.0; // smoothed wall time between frames [s]
 	TArray<FUrvEvent> PendingEvents;
 	FString LinkStatus;
 

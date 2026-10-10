@@ -10,6 +10,9 @@ struct FUrvEntityState
 	FVector PosEcef = FVector::ZeroVector;
 	FVector VelEcef = FVector::ZeroVector;
 	FQuat QBody2Ecef = FQuat::Identity;
+	FVector OmegaBody = FVector::ZeroVector;   // body rates [rad/s], 0 if the sender has none
+	FVector2D Gimbal = FVector2D::ZeroVector;  // pitch, yaw [rad]
+	double Throttle = 0.0;                     // 0..1
 	bool bEngineOn = false;
 	uint32 EngineMask = 0;   // bit i: engine i burning
 	// Display values from the sender, shown as they are (e.g. "speed_kmh").
