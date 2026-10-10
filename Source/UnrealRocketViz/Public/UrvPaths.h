@@ -6,6 +6,7 @@
 
 class AUrvDirector;
 class UMaterialInterface;
+class UMaterialInstanceDynamic;
 class UProceduralMeshComponent;
 struct FUrvFrame;
 
@@ -51,6 +52,9 @@ public:
 
 	EUrvPathMode PathMode = EUrvPathMode::WithGhosts;
 	bool bShowTrail = true;
+	// Emissive brightness relative to a daylit scene (Cesium's physical sun exposes for
+	// ~2000 nits, like the plume): 1 is about as bright as a sunlit white surface.
+	float Glow = 3.0f;
 	double LinePixels = 18.0;       // on-screen width of the newest path's ribbon, glow included [px]
 	double TrailSpacing = 0.1;      // [s] of sim time between trail points
 	int32 TrailMaxPoints = 6000;
@@ -98,7 +102,7 @@ private:
 	UPROPERTY()
 	TObjectPtr<UProceduralMeshComponent> Mesh;
 	UPROPERTY()
-	TObjectPtr<UMaterialInterface> RibbonMaterial;
+	TObjectPtr<UMaterialInstanceDynamic> RibbonMaterial;
 
 	const FUrvPathStyle& StyleFor(const FString& Name) const;
 	void ClearShown();
