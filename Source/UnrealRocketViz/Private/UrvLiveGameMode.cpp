@@ -191,7 +191,17 @@ void AUrvLiveGameMode::ApplyScene(const FString& Json)
 	{
 		if (const TSharedPtr<FJsonObject> G = Obj(Root, TEXT("ground_ref")))
 		{
-			Director->SetGroundReference(LonLatHeight(G), Num(G, TEXT("above_m"), 0.0));
+			const double Above = Num(G, TEXT("above_m"), 0.0);
+			const int32 Entity = int32(Num(G, TEXT("entity"), -1));
+			if (Entity >= 0)
+			{
+				// Wherever the sender has that entity in its first frame stands Above over the terrain.
+				Director->SetGroundReferenceFromEntity(Entity, Above);
+			}
+			else
+			{
+				Director->SetGroundReference(LonLatHeight(G), Above);
+			}
 			bGroundSet = true;
 		}
 	}

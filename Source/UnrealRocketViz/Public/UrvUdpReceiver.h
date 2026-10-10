@@ -21,8 +21,13 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FUrvSceneReceived, const FString& /*Json*/);
 // their content changes. Receives on its own thread; the director is
 // thread-safe by design.
 //
-// Overrides from the command line: -UrvGroup=239.255.76.86 -UrvPort=47686
-// (-UrvGroup=none listens for unicast only).
+// Another wire format: subclass and override HandleDatagram, decoding into
+// FUrvFrame / events and calling EmitFrame / EmitEvent / EmitScene / NoteSequence;
+// the socket, thread, de-duplication and link status stay as they are.
+//
+// Overrides: -UrvGroup=239.255.76.86 (-UrvGroup=none: unicast only) and
+// -UrvPort=47686 on the command line, or the URV_UDP_PORT environment variable
+// (e.g. for a second instance).
 UCLASS()
 class UNREALROCKETVIZ_API AUrvUdpReceiver : public AActor
 {
@@ -56,6 +61,19 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	virtual void Tick(float DeltaSeconds) override;
 
+	// One datagram, on the receive thread. The default decodes URV v1.
+	virtual void HandleDatagram(const uint8* Data, int32 Size);
+
+	// For HandleDatagram (receive thread).
+	void EmitFrame(const FUrvFrame& Frame);
+	// Pushes the event unless (SenderId, EventId) was already seen.
+	void EmitEvent(uint32 SenderId, uint32 EventId, double SimTime, const FString& Name);
+	// Hands a SCENE to OnScene on the game thread if it differs from the last one.
+	void EmitScene(const FString& Json);
+	// Counts datagrams lost from per-sender sequence numbers; a new SenderId resets.
+	void NoteSequence(uint32 SenderId, uint32 Seq);
+	void NoteBad() { ++Errors; }
+
 private:
 	void OnDatagram(const TSharedPtr<class FArrayReader, ESPMode::ThreadSafe>& Data, const FIPv4Endpoint& From);
 
@@ -65,10 +83,13 @@ private:
 	// Receive thread only.
 	UrvWire::FEventDedup Dedup;
 	uint32 LastSender = 0;
+	bool bAnySeq = false;
+	uint32 NextSeq = 0;
 	FString LastSceneJson;
 
 	std::atomic<int64> Packets{0};
 	std::atomic<int64> Errors{0};
+	std::atomic<int64> Lost{0};
 	double StatusAt = 0.0;
 	int64 StatusPackets = 0;
 };

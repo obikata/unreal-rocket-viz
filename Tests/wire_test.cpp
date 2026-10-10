@@ -30,14 +30,15 @@ int main(int argc, char** argv)
 			std::printf("  t=%.17g send=%.17g n=%zu\n", M.SimTime, M.SendTime, M.Entities.size());
 			for (const auto& E : M.Entities)
 			{
-				std::printf("  id=%d pos=%.17g,%.17g,%.17g vel=%.17g,%.17g,%.17g q=%.17g,%.17g,%.17g,%.17g mask=%u flags=%u\n",
+				std::printf("  id=%d pos=%.17g,%.17g,%.17g vel=%.17g,%.17g,%.17g q=%.17g,%.17g,%.17g,%.17g "
+					"w=%.17g,%.17g,%.17g gimbal=%.17g,%.17g thr=%.17g mask=%u flags=%u\n",
 					E.Id, E.Pos[0], E.Pos[1], E.Pos[2], E.Vel[0], E.Vel[1], E.Vel[2], E.Q[0], E.Q[1], E.Q[2], E.Q[3],
-					E.EngineMask, E.Flags);
+					E.Omega[0], E.Omega[1], E.Omega[2], E.Gimbal[0], E.Gimbal[1], E.Throttle, E.EngineMask, E.Flags);
 				for (const auto& C : E.Channels) std::printf("    %s=%.17g\n", C.first.c_str(), C.second);
 			}
 		}
 		else if (H.Type == 2)
-			std::printf("  t=%.17g id=%u name=%s\n", M.SimTime, M.EventId, M.EventName.c_str());
+			std::printf("  t=%.17g id=%u entity=%d name=%s\n", M.SimTime, M.EventId, M.EventEntity, M.EventName.c_str());
 		else
 			std::printf("  json=%s\n", M.SceneJson.c_str());
 	}

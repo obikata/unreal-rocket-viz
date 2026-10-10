@@ -6,6 +6,7 @@
 #include "HAL/PlatformTime.h"
 #include "Interfaces/IPv4/IPv4Address.h"
 #include "Interfaces/IPv4/IPv4Endpoint.h"
+#include "HAL/PlatformMisc.h"
 #include "Misc/CommandLine.h"
 #include "Misc/Parse.h"
 #include "Serialization/ArrayReader.h"
@@ -37,8 +38,16 @@ void AUrvUdpReceiver::EndPlay(const EEndPlayReason::Type EndPlayReason)
 bool AUrvUdpReceiver::Start()
 {
 	Stop();
+	const FString PortEnv = FPlatformMisc::GetEnvironmentVariable(TEXT("URV_UDP_PORT"));
+	if (!PortEnv.IsEmpty())
+	{
+		Port = FCString::Atoi(*PortEnv);
+	}
 	FParse::Value(FCommandLine::Get(), TEXT("UrvGroup="), Group);
 	FParse::Value(FCommandLine::Get(), TEXT("UrvPort="), Port);
+	bAnySeq = false;
+	LastSender = 0;
+	LastSceneJson.Reset();
 
 	FUdpSocketBuilder Builder(TEXT("UrvUdpReceiver"));
 	Builder.AsNonBlocking()
@@ -98,19 +107,22 @@ void AUrvUdpReceiver::Stop()
 
 void AUrvUdpReceiver::OnDatagram(const TSharedPtr<FArrayReader, ESPMode::ThreadSafe>& Data, const FIPv4Endpoint& From)
 {
+	if (Data.IsValid())
+	{
+		HandleDatagram(Data->GetData(), Data->Num());
+	}
+}
+
+void AUrvUdpReceiver::HandleDatagram(const uint8* Data, int32 Size)
+{
 	UrvWire::FMessage M;
 	std::string Err;
-	if (!Data.IsValid() || !UrvWire::Decode(Data->GetData(), Data->Num(), M, &Err))
+	if (!UrvWire::Decode(Data, std::size_t(Size), M, &Err))
 	{
-		++Errors;
+		NoteBad();
 		return;
 	}
-	++Packets;
-	if (M.Header.SenderId != LastSender)
-	{
-		LastSender = M.Header.SenderId;
-		LastSceneJson.Reset();   // a restarted sender: take its scene again
-	}
+	NoteSequence(M.Header.SenderId, M.Header.Seq);
 
 	switch (static_cast<UrvWire::EType>(M.Header.Type))
 	{
@@ -127,6 +139,9 @@ void AUrvUdpReceiver::OnDatagram(const TSharedPtr<FArrayReader, ESPMode::ThreadS
 			E.PosEcef = FVector(W.Pos[0], W.Pos[1], W.Pos[2]);
 			E.VelEcef = FVector(W.Vel[0], W.Vel[1], W.Vel[2]);
 			E.QBody2Ecef = FQuat(W.Q[1], W.Q[2], W.Q[3], W.Q[0]).GetNormalized();   // FQuat is (X, Y, Z, W)
+			E.OmegaBody = FVector(W.Omega[0], W.Omega[1], W.Omega[2]);
+			E.Gimbal = FVector2D(W.Gimbal[0], W.Gimbal[1]);
+			E.Throttle = W.Throttle;
 			E.bEngineOn = (W.Flags & 1u) != 0;
 			E.EngineMask = W.EngineMask;
 			for (const auto& C : W.Channels)
@@ -134,35 +149,68 @@ void AUrvUdpReceiver::OnDatagram(const TSharedPtr<FArrayReader, ESPMode::ThreadS
 				E.Channels.Add(FName(UTF8_TO_TCHAR(C.first.c_str())), C.second);
 			}
 		}
-		if (Director)
-		{
-			Director->PushFrame(F);
-		}
+		EmitFrame(F);
 		break;
 	}
 	case UrvWire::EType::Event:
-		if (Director && Dedup.Accept(M.Header.SenderId, M.EventId))
-		{
-			Director->PushEvent(M.SimTime, UTF8_TO_TCHAR(M.EventName.c_str()));
-		}
+		EmitEvent(M.Header.SenderId, M.EventId, M.SimTime, UTF8_TO_TCHAR(M.EventName.c_str()));
 		break;
 	case UrvWire::EType::Scene:
-	{
-		FString Json = UTF8_TO_TCHAR(M.SceneJson.c_str());
-		if (Json != LastSceneJson)
-		{
-			LastSceneJson = Json;
-			TWeakObjectPtr<AUrvUdpReceiver> Self(this);
-			AsyncTask(ENamedThreads::GameThread, [Self, Json]() {
-				if (AUrvUdpReceiver* R = Self.Get())
-				{
-					R->OnScene.Broadcast(Json);
-				}
-			});
-		}
+		EmitScene(UTF8_TO_TCHAR(M.SceneJson.c_str()));
 		break;
 	}
+}
+
+void AUrvUdpReceiver::NoteSequence(uint32 SenderId, uint32 Seq)
+{
+	++Packets;
+	if (!bAnySeq || SenderId != LastSender)
+	{
+		LastSender = SenderId;      // a (re)started sender
+		LastSceneJson.Reset();      // take its scene again
+		bAnySeq = true;
+		NextSeq = Seq + 1;
+		return;
 	}
+	const uint32 Gap = Seq - NextSeq;   // modulo 2^32
+	if (Gap < 0x80000000u)              // ahead: anything skipped is lost
+	{
+		Lost += Gap;
+		NextSeq = Seq + 1;
+	}
+	// behind: a late or duplicated datagram, already counted
+}
+
+void AUrvUdpReceiver::EmitFrame(const FUrvFrame& Frame)
+{
+	if (Director)
+	{
+		Director->PushFrame(Frame);
+	}
+}
+
+void AUrvUdpReceiver::EmitEvent(uint32 SenderId, uint32 EventId, double SimTime, const FString& Name)
+{
+	if (Director && Dedup.Accept(SenderId, EventId))
+	{
+		Director->PushEvent(SimTime, Name);
+	}
+}
+
+void AUrvUdpReceiver::EmitScene(const FString& Json)
+{
+	if (Json == LastSceneJson)
+	{
+		return;
+	}
+	LastSceneJson = Json;
+	TWeakObjectPtr<AUrvUdpReceiver> Self(this);
+	AsyncTask(ENamedThreads::GameThread, [Self, Json]() {
+		if (AUrvUdpReceiver* R = Self.Get())
+		{
+			R->OnScene.Broadcast(Json);
+		}
+	});
 }
 
 void AUrvUdpReceiver::Tick(float DeltaSeconds)
@@ -178,7 +226,15 @@ void AUrvUdpReceiver::Tick(float DeltaSeconds)
 	StatusAt = Now;
 	StatusPackets = N;
 	const int64 E = Errors.load();
-	Director->SetLinkStatus(N == 0 ? FString::Printf(TEXT("UDP %d  WAITING"), Port)
-		: FString::Printf(TEXT("UDP %d  %.0f PKT/S%s"), Port, Rate,
-			E > 0 ? *FString::Printf(TEXT("  %lld BAD"), E) : TEXT("")));
+	const int64 L = Lost.load();
+	FString Status = N == 0 ? FString::Printf(TEXT("UDP %d  WAITING"), Port) : FString::Printf(TEXT("UDP %d  %.0f HZ"), Port, Rate);
+	if (L > 0)
+	{
+		Status += FString::Printf(TEXT("  LOST %lld"), L);
+	}
+	if (E > 0)
+	{
+		Status += FString::Printf(TEXT("  BAD %lld"), E);
+	}
+	Director->SetLinkStatus(Status);
 }

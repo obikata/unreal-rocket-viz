@@ -19,8 +19,8 @@ DEFAULT_PORT = 47686
 
 _HDR = struct.Struct("<IHHIII")                    # magic, version, type, seq, sender_id, payload_bytes
 _FRAME_HEAD = struct.Struct("<ddHH")               # sim_time, send_time, n_entities, reserved
-_ENTITY = struct.Struct("<i3d3d4dIIH")             # id, pos, vel, quat, engine_mask, flags, n_channels
-_EVENT_HEAD = struct.Struct("<dI")                 # sim_time, event_id
+_ENTITY = struct.Struct("<i3d3d4d3d2ddIIH")        # id, pos, vel, quat, omega, gimbal, throttle, engine_mask, flags, n_channels
+_EVENT_HEAD = struct.Struct("<dIi")                # sim_time, event_id, entity_id
 HEADER_BYTES = _HDR.size                           # 20
 
 
@@ -30,6 +30,9 @@ class Entity:
     pos_ecef: tuple[float, float, float]
     vel_ecef: tuple[float, float, float] = (0.0, 0.0, 0.0)
     q_body2ecef: tuple[float, float, float, float] = (1.0, 0.0, 0.0, 0.0)   # w, x, y, z; body +X = nose
+    omega_body: tuple[float, float, float] = (0.0, 0.0, 0.0)                # [rad/s]
+    gimbal: tuple[float, float] = (0.0, 0.0)                                # pitch, yaw [rad]
+    throttle: float = 0.0                                                   # 0..1
     engine_mask: int = 0
     engine_on: bool = False
     channels: dict[str, float] = field(default_factory=dict)
@@ -49,8 +52,8 @@ def _wrap(msg_type: int, seq: int, sender_id: int, payload: bytes) -> bytes:
 def encode_frame(seq: int, sender_id: int, sim_time: float, send_time: float, entities: list[Entity]) -> bytes:
     out = [_FRAME_HEAD.pack(sim_time, send_time, len(entities), 0)]
     for e in entities:
-        out.append(_ENTITY.pack(e.id, *e.pos_ecef, *e.vel_ecef, *e.q_body2ecef,
-                                e.engine_mask & 0xFFFFFFFF, 1 if e.engine_on else 0, len(e.channels)))
+        out.append(_ENTITY.pack(e.id, *e.pos_ecef, *e.vel_ecef, *e.q_body2ecef, *e.omega_body, *e.gimbal,
+                                e.throttle, e.engine_mask & 0xFFFFFFFF, 1 if e.engine_on else 0, len(e.channels)))
         for name, value in e.channels.items():
             if not name.isascii():
                 raise ValueError(f"channel names are ASCII: {name!r}")
@@ -58,8 +61,9 @@ def encode_frame(seq: int, sender_id: int, sim_time: float, send_time: float, en
     return _wrap(FRAME, seq, sender_id, b"".join(out))
 
 
-def encode_event(seq: int, sender_id: int, sim_time: float, event_id: int, name: str) -> bytes:
-    return _wrap(EVENT, seq, sender_id, _EVENT_HEAD.pack(sim_time, event_id & 0xFFFFFFFF) + _str(name))
+def encode_event(seq: int, sender_id: int, sim_time: float, event_id: int, name: str, entity_id: int = 0) -> bytes:
+    """entity_id: the entity the event belongs to, 0 for the whole flight."""
+    return _wrap(EVENT, seq, sender_id, _EVENT_HEAD.pack(sim_time, event_id & 0xFFFFFFFF, entity_id) + _str(name))
 
 
 def encode_scene(seq: int, sender_id: int, scene: dict) -> bytes:
@@ -104,14 +108,15 @@ def decode(buf: bytes) -> dict:
         for _ in range(ne):
             v = take(_ENTITY)
             chans = {}
-            for _ in range(v[13]):
+            for _ in range(v[19]):
                 name = take_str()
                 chans[name] = take(struct.Struct("<d"))[0]
-            ents.append(Entity(v[0], tuple(v[1:4]), tuple(v[4:7]), tuple(v[7:11]), v[11], bool(v[12] & 1), chans))
+            ents.append(Entity(v[0], tuple(v[1:4]), tuple(v[4:7]), tuple(v[7:11]), tuple(v[11:14]), tuple(v[14:16]),
+                               v[16], v[17], bool(v[18] & 1), chans))
         out.update(sim_time=t, send_time=ts, entities=ents)
     elif msg_type == EVENT:
-        t, eid = take(_EVENT_HEAD)
-        out.update(sim_time=t, event_id=eid, name=take_str())
+        t, eid, ent = take(_EVENT_HEAD)
+        out.update(sim_time=t, event_id=eid, entity_id=ent, name=take_str())
     elif msg_type == SCENE:
         out.update(scene=json.loads(p.decode("utf-8")))
         off = len(p)

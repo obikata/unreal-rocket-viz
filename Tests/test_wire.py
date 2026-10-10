@@ -46,12 +46,13 @@ def _py_dump(path: Path) -> str:
     if m["type"] == 1:
         lines.append(f"  t={g(m['sim_time'])} send={g(m['send_time'])} n={len(m['entities'])}")
         for e in m["entities"]:
-            lines.append("  id=%d pos=%s vel=%s q=%s mask=%d flags=%d" % (
+            lines.append("  id=%d pos=%s vel=%s q=%s w=%s gimbal=%s thr=%s mask=%d flags=%d" % (
                 e.id, ",".join(g(v) for v in e.pos_ecef), ",".join(g(v) for v in e.vel_ecef),
-                ",".join(g(v) for v in e.q_body2ecef), e.engine_mask, 1 if e.engine_on else 0))
+                ",".join(g(v) for v in e.q_body2ecef), ",".join(g(v) for v in e.omega_body),
+                ",".join(g(v) for v in e.gimbal), g(e.throttle), e.engine_mask, 1 if e.engine_on else 0))
             lines += [f"    {k}={g(v)}" for k, v in e.channels.items()]
     elif m["type"] == 2:
-        lines.append(f"  t={g(m['sim_time'])} id={m['event_id']} name={m['name']}")
+        lines.append(f"  t={g(m['sim_time'])} id={m['event_id']} entity={m['entity_id']} name={m['name']}")
     else:
         lines.append("  json=" + (path.read_bytes()[20:]).decode("utf-8"))
     return "\n".join(lines)

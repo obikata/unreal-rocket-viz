@@ -40,6 +40,9 @@ struct FEntity
 	double Pos[3] = {0, 0, 0};          // ECEF [m]
 	double Vel[3] = {0, 0, 0};          // ECEF [m/s]
 	double Q[4] = {1, 0, 0, 0};         // w, x, y, z: body -> ECEF, body +X = nose
+	double Omega[3] = {0, 0, 0};        // body rates [rad/s]
+	double Gimbal[2] = {0, 0};          // pitch, yaw [rad]
+	double Throttle = 0.0;              // 0..1
 	uint32_t EngineMask = 0;
 	uint32_t Flags = 0;                 // bit 0: engine on
 	std::vector<std::pair<std::string, double>> Channels;
@@ -54,6 +57,7 @@ struct FMessage
 	std::vector<FEntity> Entities;
 	// EVENT (SimTime as above)
 	uint32_t EventId = 0;
+	int32_t EventEntity = 0;            // 0: the whole flight
 	std::string EventName;
 	// SCENE
 	std::string SceneJson;
@@ -140,7 +144,9 @@ inline bool Decode(const uint8_t* Data, std::size_t Size, FMessage& Out, std::st
 			for (double& V : E.Pos) Ok = Ok && R.Read(V);
 			for (double& V : E.Vel) Ok = Ok && R.Read(V);
 			for (double& V : E.Q) Ok = Ok && R.Read(V);
-			Ok = Ok && R.Read(E.EngineMask) && R.Read(E.Flags) && R.Read(NC);
+			for (double& V : E.Omega) Ok = Ok && R.Read(V);
+			for (double& V : E.Gimbal) Ok = Ok && R.Read(V);
+			Ok = Ok && R.Read(E.Throttle) && R.Read(E.EngineMask) && R.Read(E.Flags) && R.Read(NC);
 			if (!Ok) return Fail("truncated entity");
 			E.Channels.reserve(NC);
 			for (uint16_t c = 0; c < NC; ++c)
@@ -155,7 +161,8 @@ inline bool Decode(const uint8_t* Data, std::size_t Size, FMessage& Out, std::st
 		break;
 	}
 	case EType::Event:
-		if (!R.Read(Out.SimTime) || !R.Read(Out.EventId) || !R.ReadString(Out.EventName)) return Fail("truncated event");
+		if (!R.Read(Out.SimTime) || !R.Read(Out.EventId) || !R.Read(Out.EventEntity) || !R.ReadString(Out.EventName))
+			return Fail("truncated event");
 		break;
 	case EType::Scene:
 		R.ReadRest(Out.SceneJson);

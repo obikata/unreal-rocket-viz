@@ -49,7 +49,10 @@ ENTITY:
 | f64×3 | pos_ecef | [m] the entity's reference point (see SCENE `look.start_x`) |
 | f64×3 | vel_ecef | [m/s], relative to the rotating Earth |
 | f64×4 | q_body2ecef | `w, x, y, z`, unit; body +X = nose |
-| u32  | engine_mask | bit *i*: engine *i* burning |
+| f64×3 | omega_body | body rates [rad/s]; 0 if unknown |
+| f64×2 | gimbal | engine gimbal pitch, yaw [rad]; 0 if unknown |
+| f64  | throttle | 0..1 |
+| u32  | engine_mask | bit *i*: engine *i* burning (numbering is per vehicle) |
 | u32  | flags | bit 0: any engine on |
 | u16  | n_channels | |
 | CHANNEL × n_channels | | |
@@ -63,6 +66,7 @@ sent (e.g. `speed_kmh`, `altitude_km`). The viewer computes nothing from it.
 |------|-------|-------|
 | f64  | sim_time | [s] |
 | u32  | event_id | unique per sender run |
+| i32  | entity_id | the entity it belongs to; 0 = the whole flight |
 | str  | name | e.g. `LANDING_BURN`, matched against SCENE milestones |
 
 UDP may drop a datagram: senders repeat every EVENT **3 times**; receivers
@@ -78,7 +82,7 @@ the content changes.
 {
   "mission": "PDG landing",
   "origin": {"lon": -80.544, "lat": 28.486, "height": 0.0},
-  "ground_ref": {"lon": -80.544, "lat": 28.486, "height": 0.0, "above_m": 0.0},
+  "ground_ref": {"entity": 1, "above_m": 0.0},
   "solar_time": 10.5,
   "entities": [
     {"id": 1, "label": "BOOSTER", "label_local": "ブースター",
@@ -99,8 +103,11 @@ the content changes.
 ```
 
 - `origin`: georeference origin (degrees, degrees, metres above WGS84).
-- `ground_ref` (optional): stand this point `above_m` above the streamed
-  terrain (`AUrvDirector::SetGroundReference`), e.g. the landing pad.
+- `ground_ref` (optional): stand a point `above_m` above the streamed
+  terrain, e.g. the pad. Either a place (`lon`, `lat`, `height`:
+  `AUrvDirector::SetGroundReference`) or `{"entity": id}`: wherever that entity
+  is in its first frame (`SetGroundReferenceFromEntity`), so a sender whose pad
+  height does not match the terrain still lands its vehicle on the ground.
 - `look`: `FUrvStageLook` in metres. The entity's reference point is the
   actor origin; the body spans `start_x .. start_x + length` along +X.
 - `model` (optional): a vehicle class name the host project may map to its own meshes.
@@ -108,3 +115,11 @@ the content changes.
 
 Unknown JSON keys are ignored, so senders may add fields without a version bump.
 Any change to the binary layout bumps `version`.
+
+## Other wire formats
+
+A host project with its own format keeps the plugin's socket, thread,
+de-duplication and link status: subclass `AUrvUdpReceiver`, override
+`HandleDatagram(Data, Size)`, decode into `FUrvFrame` and call `EmitFrame`,
+`EmitEvent(sender, event_id, t, name)`, `EmitScene(json)` and
+`NoteSequence(sender, seq)` (losses show in the link status).
