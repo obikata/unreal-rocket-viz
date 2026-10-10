@@ -15,7 +15,7 @@ come from the sender's SCENE messages.
    unzipped into the engine's `Engine/Plugins/Marketplace/` (in a project's
    `Plugins/` the build recompiles it from source with the project's
    warnings-as-errors, which it does not pass).
-3. Clone this repo into the project's `Plugins/` folder (`git clone -b feat/udp-live` until PR #4 is merged) and enable
+3. Clone this repo into the project's `Plugins/` folder and enable
    `UnrealRocketViz`; let the editor build the module.
 4. Sign in to Cesium ion from the Cesium panel (the default access token is
    then used for terrain and imagery).
