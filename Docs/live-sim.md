@@ -9,7 +9,10 @@ come from the sender's SCENE messages.
 
 1. Create an Unreal Engine 5.8 **C++** project (Games → Blank, C++), or use an
    existing C++ project.
-2. Install **Cesium for Unreal 2.30** (Fab) and enable it.
+2. Install **Cesium for Unreal** (2.29 or later, the build for UE 5.8) and enable
+   it: from Fab on Windows/macOS, or on Linux the `CesiumForUnreal-58-v*.zip` from
+   the [GitHub releases](https://github.com/CesiumGS/cesium-unreal/releases)
+   unzipped into the project's `Plugins/`.
 3. Clone this repo into the project's `Plugins/` folder (`git clone -b feat/udp-live` until PR #4 is merged) and enable
    `UnrealRocketViz`; let the editor build the module.
 4. Sign in to Cesium ion from the Cesium panel (the default access token is
@@ -40,6 +43,23 @@ resumes the automatic cuts. Drag to orbit, wheel to zoom.
   `-UrvGroup=none` (or set `MulticastGroup` to `none` on the GameMode).
 - Windows firewall: allow inbound UDP on port 47686 for the editor / game.
 - Another port: `-UrvPort=<n>` on the viewer, `--port <n>` on the sender.
+
+## Linux (Ubuntu)
+
+There is no Epic Launcher: use the Linux build of UE 5.8 (or one built from
+source), and Cesium from its GitHub release zip (step 2). Build the editor
+target from a terminal, which also gives readable errors:
+
+```bash
+cd ~/RocketVizHost
+~/UnrealEngine/Engine/Build/BatchFiles/Linux/Build.sh RocketVizHostEditor Linux Development \
+    -Project="$PWD/RocketVizHost.uproject" -WaitMutex
+~/UnrealEngine/Engine/Binaries/Linux/UnrealEditor "$PWD/RocketVizHost.uproject" -UrvGroup=none
+```
+
+With the sender on the same machine, unicast to loopback is the simplest:
+`python -m sim.urv_stream --dest 127.0.0.1 --loop` with the viewer started with
+`-UrvGroup=none`. If `ufw` is active: `sudo ufw allow 47686/udp`.
 
 ## Your own meshes
 

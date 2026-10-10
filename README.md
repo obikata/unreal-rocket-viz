@@ -5,7 +5,7 @@ Unreal Engine plugin (`UnrealRocketViz`) that draws rocket vehicles on a [Cesium
 ## Requirements
 
 - Unreal Engine 5.8
-- Cesium for Unreal 2.30 (enabled as a plugin; tiles stream from Cesium ion)
+- Cesium for Unreal 2.29 or later, the UE 5.8 build (enabled as a plugin; tiles stream from Cesium ion)
 
 ## Usage
 
