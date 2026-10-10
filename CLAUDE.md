@@ -1,0 +1,64 @@
+# CLAUDE.md — agent guide for `unreal-rocket-viz`
+
+A generic Unreal Engine 5 plugin that draws launch vehicles on a Cesium globe
+from time-stamped ECEF states. Fed live over UDP (URV wire protocol v1,
+`Docs/wire-protocol.md`) or by a host project's own code. Senders know nothing
+about Unreal. The main sender today is `obikata/powered-descent-sim`
+(`python -m sim.urv_stream`).
+
+## Boundaries
+- Keep it generic: no PDG-, vehicle- or company-specific logic in the plugin.
+  Senders describe what to draw through the SCENE JSON.
+- Public information only (Apache-2.0). No real-company logos or trademarks
+  (vehicles are "-class").
+- Wire format: a new message type or optional SCENE key is backward compatible.
+  Any change to an existing binary layout bumps `version`. Goldens pin it.
+
+## Definition of done
+```bash
+python -m pytest Tests      # golden packets; Python <-> C++ decoder cross-check (g++ ASan/UBSan)
+```
+Then **build in Unreal and look**. Visual quality is a human review gate
+(Yohei), never claimed from code alone.
+
+## Dev loop (Yohei's machine: Ubuntu 22.04, UE 5.8.0 binary at ~/UnrealEngine)
+```bash
+P="$HOME/Documents/Unreal Projects/RocketVizHost"     # host project; this repo is in $P/Plugins/
+$UE/Engine/Build/BatchFiles/Linux/Build.sh RocketVizHostEditor Linux Development \
+    -Project="$P/RocketVizHost.uproject" -WaitMutex 2>&1 | tee "$P/build.log" | tail -3
+$UE/Engine/Binaries/Linux/UnrealEditor "$P/RocketVizHost.uproject" -UrvGroup=none
+# sender (other terminal): python -m sim.urv_stream --closed-loop --dest 127.0.0.1 --loop --wind 0 8 0
+```
+- Build with the editor **closed**; the editor does not pick up new code otherwise.
+- The level is an empty level whose GameMode Override is `UrvLiveGameMode`; it must be saved.
+- `-UrvGroup=none` = unicast (same machine). Default is multicast 239.255.76.86:47686.
+- Keys: 1–9 target, V view, A auto cuts, P paths (current / ghosts / hidden),
+  T trails, H HUD. P and T print the new mode on screen.
+
+## Gotchas learned the hard way
+- **Cesium for Unreal** (2.29.x, the UE 5.8 zip from GitHub releases) lives in
+  `$UE/Engine/Plugins/Marketplace/`. In a project's `Plugins/` it gets recompiled
+  with the project's warnings-as-errors and fails.
+- **Exposure:** Cesium's physical sun exposes for daylight. Emissive needs about
+  ×2000 ("DaylightNits") to show at all, or translucent things just look black.
+- **Materials** come from `Tools/make_materials.py` (Python Editor Script Plugin).
+  It only creates *missing* materials. Clearing a material the running editor has
+  loaded asserts (`!IsRooted`) and crashes the editor. Rebuilding existing ones is
+  headless only, with `URV_REBUILD_MATERIALS=1`. Generated `.uasset` files must be
+  committed from Yohei's machine; this agent cannot make them.
+- UE 5.8 treats `-Wshadow` and unreachable code as errors in plugins. Include what
+  you use (a missing `UrvTypes.h` include broke the first build).
+- Time of day: SCENE `solar_time` is local *solar* time; the time zone defaults to lon/15.
+- The director settles on the newest frame when the feed stalls for
+  max(0.25 s, 3 frame intervals), so a stopped stream does not bob vehicles through the ground.
+
+## Open work (as of 2026-10-11)
+- **PR #6 `feat/paths`** (with powered-descent-sim PR #5): PATH messages, the
+  guidance plan, earlier plans as ghosts, flown trails, P/T/H keys. Function works
+  on Yohei's machine. **The visual style is not accepted yet.** Already rejected:
+  plain debug lines; cyan glow; pastel cyan; magenta/amber three-layer
+  (outline + body + core). Next step: get Yohei's direction (a screenshot, or a
+  reference look) before another round. A key that cycles a few palettes live
+  would make comparing quick. Style knobs are on `AUrvPaths`: `Glow`,
+  `LinePixels`, `Opacity`, and `FUrvPathStyle`.
+- `M_UrvPath.uasset` needs committing (generated on Yohei's machine).
