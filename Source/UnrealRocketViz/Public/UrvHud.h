@@ -53,6 +53,9 @@ public:
 		{ TEXT("speed_kmh"), TEXT("SPEED"), TEXT("KM/H"), 0, 30000.0 },
 		{ TEXT("altitude_km"), TEXT("ALTITUDE"), TEXT("KM"), 1, 300.0 } };
 
+	// H: hide / show the overlay (e.g. for clean captures).
+	void ToggleOverlay();
+
 	// Index of the group the chase camera follows.
 	int32 GetFollowedIndex() const;
 	const FUrvMilestone* FindMilestone(const FString& Code) const

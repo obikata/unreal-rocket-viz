@@ -6,6 +6,7 @@
 // the decoded messages into FUrvFrame / FUrvEvent.
 #pragma once
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -22,7 +23,7 @@ constexpr std::size_t kHeaderBytes = 20;
 constexpr const char* kDefaultGroup = "239.255.76.86";
 constexpr uint16_t kDefaultPort = 47686;
 
-enum class EType : uint16_t { Frame = 1, Event = 2, Scene = 3 };
+enum class EType : uint16_t { Frame = 1, Event = 2, Scene = 3, Path = 4 };
 
 struct FHeader
 {
@@ -61,6 +62,11 @@ struct FMessage
 	std::string EventName;
 	// SCENE
 	std::string SceneJson;
+	// PATH (SimTime as above): a polyline in ECEF [m]
+	int32_t PathEntity = 0;
+	uint32_t PathVersion = 0;
+	std::string PathName;
+	std::vector<std::array<double, 3>> PathPoints;
 };
 
 namespace Detail
@@ -167,6 +173,18 @@ inline bool Decode(const uint8_t* Data, std::size_t Size, FMessage& Out, std::st
 	case EType::Scene:
 		R.ReadRest(Out.SceneJson);
 		break;
+	case EType::Path:
+	{
+		uint16_t N = 0, Reserved = 0;
+		if (!R.Read(Out.SimTime) || !R.Read(Out.PathEntity) || !R.Read(Out.PathVersion) || !R.ReadString(Out.PathName) ||
+			!R.Read(N) || !R.Read(Reserved))
+			return Fail("truncated path");
+		Out.PathPoints.assign(N, {0.0, 0.0, 0.0});
+		for (std::array<double, 3>& P : Out.PathPoints)
+			for (double& V : P)
+				if (!R.Read(V)) return Fail("truncated path point");
+		break;
+	}
 	default:
 		return Fail("unknown type");
 	}

@@ -145,6 +145,71 @@ def make_hull():
     return mat
 
 
+# Path ribbons (AUrvPaths): camera-facing strips built every frame.
+#   vertex colour  rgb = colour, a = opacity
+#   UV0            x = distance along the path [m], y = 0..1 across the strip
+#   UV1            x = flow (1: light pulses travel toward the end), y = core weight
+PATH_PROFILE = """
+float v = abs(UV.y * 2.0 - 1.0);                  // 0 on the centre line, 1 at the edge
+float core = exp(-pow(v / max(0.10 * Core, 0.02), 2.0));
+float halo = exp(-pow(v / 0.55, 2.0)) * 0.45;
+float soft = saturate((1.0 - v) * 6.0);           // no hard strip edge
+return (core + halo) * soft;
+"""
+
+PATH_PULSE = """
+float d = frac(UV.x / Spacing - T * Speed / Spacing);
+return 1.0 + Flow * 2.2 * pow(saturate(1.0 - abs(d - 0.85) * 5.0), 3.0);
+"""
+
+
+def make_path():
+    mat = get_or_create("M_UrvPath")
+    mat.set_editor_property("shading_model", unreal.MaterialShadingModel.MSM_UNLIT)
+    mat.set_editor_property("blend_mode", unreal.BlendMode.BLEND_TRANSLUCENT)
+    mat.set_editor_property("two_sided", True)
+    mat.set_editor_property("used_with_static_lighting", False)
+
+    vc = node(mat, unreal.MaterialExpressionVertexColor, -900, -100)
+    uv0 = node(mat, unreal.MaterialExpressionTextureCoordinate, -900, 60, coordinate_index=0)
+    uv1 = node(mat, unreal.MaterialExpressionTextureCoordinate, -900, 160, coordinate_index=1)
+    flow = node(mat, unreal.MaterialExpressionComponentMask, -700, 160, r=True, g=False, b=False, a=False)
+    corew = node(mat, unreal.MaterialExpressionComponentMask, -700, 240, r=False, g=True, b=False, a=False)
+    link(uv1, flow, "")
+    link(uv1, corew, "")
+    time = node(mat, unreal.MaterialExpressionTime, -900, 300)
+    spacing = scalar(mat, "PulseSpacing", 60.0, -900, 380)
+    speed = scalar(mat, "PulseSpeed", 45.0, -900, 460)
+    intensity = scalar(mat, "Intensity", 3.0, -900, 540)
+
+    profile = custom(mat, PATH_PROFILE, unreal.CustomMaterialOutputType.CMOT_FLOAT1, ["UV", "Core"], -450, 40, "Profile")
+    link(uv0, profile, "UV")
+    link(corew, profile, "Core")
+    pulse = custom(mat, PATH_PULSE, unreal.CustomMaterialOutputType.CMOT_FLOAT1,
+                   ["UV", "T", "Spacing", "Speed", "Flow"], -450, 260, "Pulse")
+    for src, pin in ((uv0, "UV"), (time, "T"), (spacing, "Spacing"), (speed, "Speed"), (flow, "Flow")):
+        link(src, pulse, pin)
+
+    glow = node(mat, unreal.MaterialExpressionMultiply, -200, 100)
+    link(profile, glow, "A")
+    link(pulse, glow, "B")
+    col = node(mat, unreal.MaterialExpressionMultiply, -50, -60)
+    link(vc, col, "A")
+    link(glow, col, "B")
+    emis = node(mat, unreal.MaterialExpressionMultiply, 120, -60)
+    link(col, emis, "A")
+    link(intensity, emis, "B")
+    opa = node(mat, unreal.MaterialExpressionMultiply, 120, 140)
+    link(vc, opa, "A", "A")
+    link(glow, opa, "B")
+    opa_c = node(mat, unreal.MaterialExpressionClamp, 280, 140)
+    link(opa, opa_c, "")
+
+    MEL.connect_material_property(emis, "", unreal.MaterialProperty.MP_EMISSIVE_COLOR)
+    MEL.connect_material_property(opa_c, "", unreal.MaterialProperty.MP_OPACITY)
+    return mat
+
+
 def finish(mat):
     errors = MEL.recompile_material(mat)
     if errors:
@@ -157,6 +222,6 @@ def finish(mat):
 # Commandlets start with an unscanned asset registry; scan so existing assets are found.
 unreal.AssetRegistryHelpers.get_asset_registry().scan_paths_synchronous(["/UnrealRocketViz"], True)
 EAL.make_directory(FOLDER)
-for m in (make_plume(), make_hull()):
+for m in (make_plume(), make_hull(), make_path()):
     finish(m)
 unreal.log("[make_materials] done")

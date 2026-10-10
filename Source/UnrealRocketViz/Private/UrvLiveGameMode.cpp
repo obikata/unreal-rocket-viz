@@ -9,6 +9,7 @@
 #include "UrvChasePawn.h"
 #include "UrvDirector.h"
 #include "UrvHud.h"
+#include "UrvPaths.h"
 #include "UrvSoundscape.h"
 #include "UrvUdpReceiver.h"
 
@@ -74,6 +75,9 @@ void AUrvLiveGameMode::BeginPlay()
 	Receiver->Group = MulticastGroup;
 	Receiver->Port = Port;
 	Receiver->Director = Director;
+	Paths = World->SpawnActor<AUrvPaths>();
+	Paths->Director = Director;
+	Receiver->Paths = Paths;
 	Receiver->OnScene.AddUObject(this, &AUrvLiveGameMode::ApplyScene);
 	Receiver->Start();
 }
@@ -110,6 +114,7 @@ void AUrvLiveGameMode::ApplyScene(const FString& Json)
 	{
 		Cam->Director = Director;
 		Cam->Soundscape = Soundscape;
+		Cam->Paths = Paths;
 		Soundscape->Listener = Cam;
 	}
 	if (Hud)
@@ -186,6 +191,37 @@ void AUrvLiveGameMode::ApplyScene(const FString& Json)
 				Hud->Milestones.Add(Out);
 			}
 		}
+	}
+
+	// How the sender's PATHs and the flown trails are drawn.
+	if (const auto* Ps = Arr(Root, TEXT("paths")))
+	{
+		Paths->Styles.Reset();
+		for (const TSharedPtr<FJsonValue>& V : *Ps)
+		{
+			const TSharedPtr<FJsonObject> P = V->AsObject();
+			FUrvPathStyle S;
+			S.Name = Str(P, TEXT("name"));
+			S.Label = Str(P, TEXT("label"), S.Name);
+			const FString Hex = Str(P, TEXT("color"));
+			if (!Hex.IsEmpty())
+			{
+				S.Color = FLinearColor(FColor::FromHex(Hex));
+			}
+			bool bDashed = false;
+			if (P.IsValid() && P->TryGetBoolField(TEXT("dashed"), bDashed))
+			{
+				S.bDashed = bDashed;
+			}
+			S.Ghosts = FMath::Clamp(int32(Num(P, TEXT("ghosts"), S.Ghosts)), 0, 50);
+			Paths->Styles.Add(S);
+		}
+	}
+	if (const TSharedPtr<FJsonObject> Tr = Obj(Root, TEXT("trail")))
+	{
+		const FString Channel = Str(Tr, TEXT("channel"));
+		Paths->TrailChannel = Channel.IsEmpty() ? NAME_None : FName(*Channel);
+		Paths->TrailMax = Num(Tr, TEXT("max"), Paths->TrailMax);
 	}
 
 	// Stand the scene on the streamed terrain, once.

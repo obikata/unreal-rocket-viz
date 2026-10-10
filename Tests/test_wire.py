@@ -27,16 +27,25 @@ def test_golden_bytes_are_stable():
 def test_python_roundtrip():
     for _, data in make_golden.packets():
         m = decode(data)
-        assert m["type"] in (1, 2, 3)
+        assert m["type"] in (1, 2, 3, 4)
 
 
-def test_rejects_truncated_and_trailing():
-    data = (GOLDEN / "frame_one.bin").read_bytes()
+@pytest.mark.parametrize("name", ["frame_one", "path"])
+def test_rejects_truncated_and_trailing(name):
+    data = (GOLDEN / f"{name}.bin").read_bytes()
     for n in range(len(data)):
         with pytest.raises(ValueError):
             decode(data[:n])
     with pytest.raises(ValueError):
         decode(data + b"\0")
+
+
+def test_path_roundtrip():
+    from urv_wire import PATH, encode_path
+    pts = [(float(i), -2.0 * i, 0.5 * i) for i in range(50)]
+    m = decode(encode_path(3, 7, 1.25, 2, "plan", 9, pts))
+    assert m["type"] == PATH and m["name"] == "plan" and m["version"] == 9 and m["entity_id"] == 2
+    assert m["points"] == pts and m["sim_time"] == 1.25
 
 
 def _py_dump(path: Path) -> str:
@@ -53,6 +62,10 @@ def _py_dump(path: Path) -> str:
             lines += [f"    {k}={g(v)}" for k, v in e.channels.items()]
     elif m["type"] == 2:
         lines.append(f"  t={g(m['sim_time'])} id={m['event_id']} entity={m['entity_id']} name={m['name']}")
+    elif m["type"] == 4:
+        lines.append(f"  t={g(m['sim_time'])} entity={m['entity_id']} version={m['version']} name={m['name']} "
+                     f"n={len(m['points'])}")
+        lines += ["    " + ",".join(g(v) for v in p) for p in m["points"]]
     else:
         lines.append("  json=" + (path.read_bytes()[20:]).decode("utf-8"))
     return "\n".join(lines)

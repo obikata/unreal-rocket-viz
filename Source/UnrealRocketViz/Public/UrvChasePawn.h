@@ -8,6 +8,7 @@ class UCameraComponent;
 class USpringArmComponent;
 class AUrvDirector;
 class AUrvSoundscape;
+class AUrvPaths;
 class AUrvVehicle;
 
 enum class EUrvView : uint8
@@ -90,6 +91,10 @@ public:
 	// Shakes the camera when the engine noise arrives.
 	UPROPERTY()
 	TObjectPtr<AUrvSoundscape> Soundscape;
+
+	// Optional: P cycles its paths (current / with earlier plans / hidden), T toggles the trails.
+	UPROPERTY()
+	TObjectPtr<AUrvPaths> Paths;
 
 	void SetView(EUrvView InView, int32 InTarget);
 	// Chase camera orbit: pitch and yaw [deg] and distance [m].

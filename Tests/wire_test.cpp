@@ -39,12 +39,19 @@ int main(int argc, char** argv)
 		}
 		else if (H.Type == 2)
 			std::printf("  t=%.17g id=%u entity=%d name=%s\n", M.SimTime, M.EventId, M.EventEntity, M.EventName.c_str());
+		else if (H.Type == 4)
+		{
+			std::printf("  t=%.17g entity=%d version=%u name=%s n=%zu\n", M.SimTime, M.PathEntity, M.PathVersion,
+				M.PathName.c_str(), M.PathPoints.size());
+			for (const auto& P : M.PathPoints) std::printf("    %.17g,%.17g,%.17g\n", P[0], P[1], P[2]);
+		}
 		else
 			std::printf("  json=%s\n", M.SceneJson.c_str());
 	}
 	// Malformed input must be rejected, never read out of bounds.
+	for (int a = 1; a < argc; ++a)
 	{
-		std::ifstream F(argv[1], std::ios::binary);
+		std::ifstream F(argv[a], std::ios::binary);
 		std::vector<uint8_t> B((std::istreambuf_iterator<char>(F)), std::istreambuf_iterator<char>());
 		UrvWire::FMessage M;
 		for (std::size_t n = 0; n < B.size(); ++n)

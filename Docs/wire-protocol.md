@@ -22,7 +22,7 @@ Both are pinned by the golden packets in `Tests/golden/`.
 |----:|-------|----------------|-------|
 | 0   | u32   | magic          | `0x31565255` — the bytes `"URV1"` |
 | 4   | u16   | version        | `1` |
-| 6   | u16   | type           | `1` FRAME, `2` EVENT, `3` SCENE |
+| 6   | u16   | type           | `1` FRAME, `2` EVENT, `3` SCENE, `4` PATH |
 | 8   | u32   | seq            | per sender, +1 every datagram (wraps) |
 | 12  | u32   | sender_id      | random per sender run: a new value = the sender restarted |
 | 16  | u32   | payload_bytes  | bytes after the header |
@@ -72,6 +72,25 @@ sent (e.g. `speed_kmh`, `altitude_km`). The viewer computes nothing from it.
 UDP may drop a datagram: senders repeat every EVENT **3 times**; receivers
 keep the first and drop repeats with the same `(sender_id, event_id)`.
 
+## PATH (type 4) — a polyline, whenever it changes
+
+A line the sender wants drawn in the world, e.g. the current guidance plan,
+a nominal trajectory, a predicted impact track.
+
+| type | field | notes |
+|------|-------|-------|
+| f64  | sim_time | [s] the path is shown once the display reaches this time |
+| i32  | entity_id | the entity it belongs to; 0 = none |
+| u32  | version | per (sender, entity_id, name): higher replaces lower |
+| str  | name | ASCII, e.g. `plan`; matched against SCENE `paths` |
+| u16  | n_points | at most 2000 (one datagram) |
+| u16  | reserved | 0 |
+| f64×3 × n_points | points | ECEF [m], in the same reference as the entity's `pos_ecef` |
+
+Receivers keep the highest version per (entity_id, name) and drop repeats, so
+senders resend the newest one (about once a second) in case one was lost.
+The viewer keeps a few earlier versions as fading "ghosts" (SCENE `paths.ghosts`).
+
 ## SCENE (type 3) — what to draw, ~1 Hz
 
 Payload is one UTF-8 JSON object. Sent at start and then about once a second,
@@ -95,6 +114,10 @@ the content changes.
     {"channel": "speed_kmh", "label": "SPEED", "unit": "KM/H", "decimals": 0, "max": 2000},
     {"channel": "altitude_m", "label": "ALTITUDE", "unit": "M", "decimals": 0, "max": 5000}
   ],
+  "paths": [
+    {"name": "plan", "label": "GUIDANCE PLAN", "color": "#38BDF8", "dashed": false, "ghosts": 6}
+  ],
+  "trail": {"channel": "tracking_err_m", "max": 1.0},
   "milestones": [
     {"time": 0.0, "code": "LANDING_BURN", "name": "着陸燃焼", "name_en": "LANDING BURN"},
     {"time": 41.2, "code": "TOUCHDOWN", "name": "着陸", "name_en": "TOUCHDOWN"}
@@ -114,6 +137,10 @@ the content changes.
   actor origin; the body spans `start_x .. start_x + length` along +X.
 - `model` (optional): a vehicle class name the host project may map to its own meshes.
 - `readouts`, `milestones`: the HUD's `FUrvReadout` / `FUrvMilestone` lists.
+- `paths` (optional): how PATHs of each `name` are drawn (`color` hex, `dashed`,
+  `ghosts` = earlier versions kept). A PATH with no entry is drawn in a default style.
+- `trail` (optional): the viewer draws each entity's flown trail; with `channel`
+  it is coloured green → amber → red over `[0, max]` of that channel.
 
 Unknown JSON keys are ignored, so senders may add fields without a version bump.
 Any change to the binary layout bumps `version`.
