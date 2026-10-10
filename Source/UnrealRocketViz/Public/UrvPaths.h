@@ -5,6 +5,9 @@
 #include "UrvPaths.generated.h"
 
 class AUrvDirector;
+class UMaterialInterface;
+class UProceduralMeshComponent;
+struct FUrvFrame;
 
 // How one kind of path is drawn (SCENE "paths", matched by name).
 struct FUrvPathStyle
@@ -26,7 +29,8 @@ enum class EUrvPathMode : uint8
 
 // Draws the sender's polylines (PATH messages, e.g. the current guidance plan
 // and the plans it replaced) and each entity's flown trail, synchronised with
-// the director's display clock. Lines keep a constant on-screen width.
+// the director's display clock, as glowing camera-facing ribbons (M_UrvPath) of
+// constant on-screen width; the newest plan pulses toward its end, which gets a ring.
 //
 // PushPath is called from the receive thread; everything else on the game thread.
 UCLASS()
@@ -47,7 +51,7 @@ public:
 
 	EUrvPathMode PathMode = EUrvPathMode::WithGhosts;
 	bool bShowTrail = true;
-	double LinePixels = 2.5;        // on-screen width of the newest path [px]
+	double LinePixels = 18.0;       // on-screen width of the newest path's ribbon, glow included [px]
 	double TrailSpacing = 0.1;      // [s] of sim time between trail points
 	int32 TrailMaxPoints = 6000;
 
@@ -59,6 +63,7 @@ public:
 	void ToggleTrail();
 
 protected:
+	virtual void BeginPlay() override;
 	virtual void Tick(float DeltaSeconds) override;
 
 private:
@@ -90,7 +95,12 @@ private:
 	double LastTrailT = -1e300;
 	double LastDisplayT = -1e300;
 
+	UPROPERTY()
+	TObjectPtr<UProceduralMeshComponent> Mesh;
+	UPROPERTY()
+	TObjectPtr<UMaterialInterface> RibbonMaterial;
+
 	const FUrvPathStyle& StyleFor(const FString& Name) const;
 	void ClearShown();
-	void Draw();
+	void Draw(const FUrvFrame& F);
 };

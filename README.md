@@ -50,7 +50,7 @@ decoder (`UrvWire.h`, no Unreal dependency) against the golden packets.
 | `AUrvDirector` | Buffers frames and events, places the bound vehicles |
 | `AUrvVehicle` | Procedural vehicle look and exhaust plume |
 | `AUrvChasePawn` | Camera with three views: chase (left-drag orbits, wheel zooms), drone (`FUrvDroneCamera`: hovers, climbs, gimbal and zoom track the target) and onboard (`FUrvMountedCamera` per target). Keys 1–9 pick the target, V cycles the views, A resumes the plan in `Cuts`, P / T / H toggle paths, trails and the HUD |
-| `AUrvPaths` | Draws the sender's PATHs (e.g. the current guidance plan and its earlier versions, fading) and each entity's flown trail, coloured by a channel; constant on-screen width |
+| `AUrvPaths` | Draws the sender's PATHs (e.g. the current guidance plan and its earlier versions, fading) and each entity's flown trail, coloured by a channel, as glowing camera-facing ribbons (`M_UrvPath`) of constant on-screen width; the newest plan pulses toward its end, marked by a ring |
 | `AUrvSoundscape` | Synthesised engine noise at the camera: delayed by the speed of sound, quieter and duller with distance; drives the camera shake |
 | `AUrvHud` | Overlay: speed, mission clock, altitude, latest event |
 | `AUrvUdpReceiver` | Subscribes to URV datagrams (multicast or unicast) on its own thread and feeds a director; SCENEs go to `OnScene` |

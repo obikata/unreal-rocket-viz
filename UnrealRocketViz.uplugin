@@ -10,6 +10,7 @@
 		{ "Name": "UnrealRocketViz", "Type": "Runtime", "LoadingPhase": "Default" }
 	],
 	"Plugins": [
-		{ "Name": "CesiumForUnreal", "Enabled": true }
+		{ "Name": "CesiumForUnreal", "Enabled": true },
+		{ "Name": "ProceduralMeshComponent", "Enabled": true }
 	]
 }
