@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GameFramework/Actor.h"
+#include "UrvTypes.h"
 #include "UrvWire.h"
 #include "UrvUdpReceiver.generated.h"
 

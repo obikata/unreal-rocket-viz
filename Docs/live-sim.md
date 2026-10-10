@@ -12,7 +12,9 @@ come from the sender's SCENE messages.
 2. Install **Cesium for Unreal** (2.29 or later, the build for UE 5.8) and enable
    it: from Fab on Windows/macOS, or on Linux the `CesiumForUnreal-58-v*.zip` from
    the [GitHub releases](https://github.com/CesiumGS/cesium-unreal/releases)
-   unzipped into the project's `Plugins/`.
+   unzipped into the engine's `Engine/Plugins/Marketplace/` (in a project's
+   `Plugins/` the build recompiles it from source with the project's
+   warnings-as-errors, which it does not pass).
 3. Clone this repo into the project's `Plugins/` folder (`git clone -b feat/udp-live` until PR #4 is merged) and enable
    `UnrealRocketViz`; let the editor build the module.
 4. Sign in to Cesium ion from the Cesium panel (the default access token is
