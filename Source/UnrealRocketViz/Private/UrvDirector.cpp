@@ -13,7 +13,7 @@ namespace
 {
 	constexpr int32 MaxBuffer = 512;
 	constexpr double MaxLag = 0.5;   // [s] resync the display clock beyond this
-	constexpr double StallSeconds = 0.25;   // [s] no frame for this long: the stream paused or ended
+	constexpr double StallMin = 0.25;   // [s] no frame for max(this, 3 frame intervals): paused or ended
 
 	double UnixNow() { return (FDateTime::UtcNow() - FDateTime(1970, 1, 1)).GetTotalSeconds(); }
 }
@@ -42,7 +42,13 @@ void AUrvDirector::PushFrame(const FUrvFrame& Frame)
 		Buffer.Reset();
 	}
 	Buffer.Add(Frame);
-	LastPushAt = FPlatformTime::Seconds();
+	const double Now = FPlatformTime::Seconds();
+	if (LastPushAt > 0.0)
+	{
+		const double Gap = FMath::Min(Now - LastPushAt, 5.0);
+		PushInterval = PushInterval > 0.0 ? 0.9 * PushInterval + 0.1 * Gap : Gap;
+	}
+	LastPushAt = Now;
 	if (Buffer.Num() > MaxBuffer)
 	{
 		Buffer.RemoveAt(0, Buffer.Num() - MaxBuffer);
@@ -246,7 +252,8 @@ void AUrvDirector::Tick(float DeltaSeconds)
 		if (Buffer.Num() > 0)
 		{
 			const double Newest = Buffer.Last().SimTime;
-			if (bClockRunning && FPlatformTime::Seconds() - LastPushAt > StallSeconds)
+			// Stalled: no frame for several of the feed's own intervals (a 1 Hz feed is not a stall).
+			if (bClockRunning && FPlatformTime::Seconds() - LastPushAt > FMath::Max(StallMin, 3.0 * PushInterval))
 			{
 				// The stream paused or ended: settle on the newest frame. Extrapolating past it
 				// and resyncing every MaxLag would bob a landed vehicle through the ground.
