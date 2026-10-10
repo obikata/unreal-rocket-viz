@@ -339,6 +339,7 @@ void AUrvPaths::Draw(const FUrvFrame& F)
 				continue;
 			}
 			const FUrvPathStyle& S = StyleFor(P.Name);
+			const FLinearColor Light = FLinearColor::LerpUsingHSV(S.Color, FLinearColor::White, Pastel);
 			TArray<FVector> W;
 			W.Reserve(P.Ecef.Num());
 			for (const FVector& E : P.Ecef)
@@ -348,8 +349,8 @@ void AUrvPaths::Draw(const FUrvFrame& F)
 			if (Age > 0)
 			{
 				// An earlier plan: a faint, thin, cooler line.
-				const FLinearColor G = WithAlpha(FLinearColor::LerpUsingHSV(S.Color, FLinearColor(0.55f, 0.62f, 0.72f), 0.5f),
-					0.32f / float(Age));
+				const FLinearColor G = WithAlpha(FLinearColor::LerpUsingHSV(Light, FLinearColor(0.7f, 0.75f, 0.82f), 0.5f),
+					0.4f * Opacity / float(Age));
 				R.Strip(W, 0.45 * LinePixels, 0.0f, 0.6f, [&G](int32) { return G; });
 				continue;
 			}
@@ -368,16 +369,17 @@ void AUrvPaths::Draw(const FUrvFrame& F)
 					}
 				}
 			}
-			const FLinearColor Col = S.Color;
-			R.Strip(W, LinePixels, S.bDashed ? 0.0f : 1.0f, 1.0f, [&Col, Here](int32 k) {
-				return WithAlpha(Col, k < Here ? 0.18f : 0.95f);
+			const FLinearColor Col = Light;
+			const float Op = Opacity;
+			R.Strip(W, LinePixels, S.bDashed ? 0.0f : 1.0f, 1.0f, [&Col, Here, Op](int32 k) {
+				return WithAlpha(Col, k < Here ? 0.2f * Op : Op);
 			});
 			// The end of the plan (e.g. the landing target): a ring and a slow outgoing pulse.
 			const FVector End = W.Last();
 			const FVector Up = Geo->TransformEarthCenteredEarthFixedDirectionToUnreal(P.Ecef.Last().GetSafeNormal()).GetSafeNormal();
 			const double Ph = FMath::Fmod(Now, 2.0) / 2.0;
-			R.Ring(End + Up * 30.0, Up, 900.0, 0.55 * LinePixels, WithAlpha(Col, 0.9f));
-			R.Ring(End + Up * 30.0, Up, 900.0 + 2600.0 * Ph, 0.4 * LinePixels, WithAlpha(Col, float(0.6 * (1.0 - Ph))));
+			R.Ring(End + Up * 30.0, Up, 900.0, 0.5 * LinePixels, WithAlpha(Col, Op));
+			R.Ring(End + Up * 30.0, Up, 900.0 + 2600.0 * Ph, 0.35 * LinePixels, WithAlpha(Col, float(0.6 * Op * (1.0 - Ph))));
 		}
 	}
 
@@ -394,11 +396,12 @@ void AUrvPaths::Draw(const FUrvFrame& F)
 			}
 			const double Max = TrailMax;
 			const int32 N = Pts.Num();
-			R.Strip(W, 0.75 * LinePixels, 0.0f, 0.55f, [&Pts, Max, N](int32 k) {
+			const float Pa = Pastel, Op = Opacity;
+			R.Strip(W, 0.7 * LinePixels, 0.0f, 0.55f, [&Pts, Max, N, Pa, Op](int32 k) {
 				const FTrailPoint& P = Pts[k];
 				const FLinearColor Base = P.bHasValue && Max > 0.0 ? Heat(P.Value / Max) : FLinearColor(0.9f, 0.92f, 0.95f);
 				const float Age = N > 1 ? float(k) / float(N - 1) : 1.0f;   // 0 oldest, 1 newest
-				return WithAlpha(Base, 0.06f + 0.74f * Age * Age);
+				return WithAlpha(FLinearColor::LerpUsingHSV(Base, FLinearColor::White, Pa), Op * (0.06f + 0.9f * Age * Age));
 			});
 		}
 	}
