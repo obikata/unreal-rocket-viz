@@ -9,6 +9,7 @@
 class AUrvDirector;
 class AUrvSoundscape;
 class AUrvUdpReceiver;
+class AUrvPaths;
 
 // Everything needed to watch a live simulator: set this as a level's GameMode,
 // press Play, start a sender (Docs/wire-protocol.md). The globe, vehicles,
@@ -58,6 +59,7 @@ private:
 	UPROPERTY() TObjectPtr<AUrvDirector> Director;
 	UPROPERTY() TObjectPtr<AUrvUdpReceiver> Receiver;
 	UPROPERTY() TObjectPtr<AUrvSoundscape> Soundscape;
+	UPROPERTY() TObjectPtr<AUrvPaths> Paths;
 	UPROPERTY() TMap<int32, TObjectPtr<AUrvVehicle>> Vehicles;
 
 	bool bGlobeReady = false;

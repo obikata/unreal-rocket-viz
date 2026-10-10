@@ -9,6 +9,7 @@
 #include "UrvUdpReceiver.generated.h"
 
 class AUrvDirector;
+class AUrvPaths;
 class FSocket;
 class FUdpSocketReceiver;
 struct FIPv4Endpoint;
@@ -47,6 +48,10 @@ public:
 	UPROPERTY()
 	TObjectPtr<AUrvDirector> Director;
 
+	// Optional: where PATH messages go.
+	UPROPERTY()
+	TObjectPtr<AUrvPaths> Paths;
+
 	FUrvSceneReceived OnScene;
 
 	// Opens the socket and starts the receive thread (also called from BeginPlay if Director is set).
@@ -69,6 +74,8 @@ protected:
 	void EmitFrame(const FUrvFrame& Frame);
 	// Pushes the event unless (SenderId, EventId) was already seen.
 	void EmitEvent(uint32 SenderId, uint32 EventId, double SimTime, const FString& Name);
+	// A polyline in ECEF [m]; the newest Version per (entity, name) wins.
+	void EmitPath(uint32 SenderId, int32 EntityId, const FString& Name, uint32 Version, double SimTime, TArray<FVector> PointsEcef);
 	// Hands a SCENE to OnScene on the game thread if it differs from the last one.
 	void EmitScene(const FString& Json);
 	// Counts datagrams lost from per-sender sequence numbers; a new SenderId resets.
