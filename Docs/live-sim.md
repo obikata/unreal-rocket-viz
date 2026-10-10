@@ -10,7 +10,7 @@ come from the sender's SCENE messages.
 1. Create an Unreal Engine 5.8 **C++** project (Games → Blank, C++), or use an
    existing C++ project.
 2. Install **Cesium for Unreal 2.30** (Fab) and enable it.
-3. Clone this repo into the project's `Plugins/` folder and enable
+3. Clone this repo into the project's `Plugins/` folder (`git clone -b feat/udp-live` until PR #4 is merged) and enable
    `UnrealRocketViz`; let the editor build the module.
 4. Sign in to Cesium ion from the Cesium panel (the default access token is
    then used for terrain and imagery).
@@ -27,7 +27,7 @@ come from the sender's SCENE messages.
    ```
 
    The globe appears at the sender's site, the vehicle is placed on the
-   streamed terrain, and the HUD switches to `UDP 47686  50 PKT/S`.
+   streamed terrain, and the HUD switches to `UDP 47686  50 HZ`.
 
 Keys: `1`–`9` pick the target, `V` cycles chase / drone / onboard, `A`
 resumes the automatic cuts. Drag to orbit, wheel to zoom.
