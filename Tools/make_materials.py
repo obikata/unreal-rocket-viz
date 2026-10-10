@@ -1,13 +1,26 @@
-"""(Re)creates the UnrealRocketViz materials. Idempotent: existing assets are cleared and rebuilt.
+"""Creates the UnrealRocketViz materials that are missing (existing ones are left alone).
 
-Run headless from a project that mounts the UnrealRocketViz plugin:
+From the editor: Tools -> Execute Python Script... -> this file. Or headless:
   UnrealEditor <Project>.uproject -run=pythonscript -script=<abs path>/make_materials.py -unattended -nosplash
+
+Rebuilding materials that already exist (after changing their graphs here) is
+headless only, with URV_REBUILD_MATERIALS=1 in the environment: in a running
+editor they are loaded and in use, and clearing their expressions asserts.
 """
+import os
+
 import unreal
 
 FOLDER = "/UnrealRocketViz/Materials"
 MEL = unreal.MaterialEditingLibrary
 EAL = unreal.EditorAssetLibrary
+
+
+REBUILD = os.environ.get("URV_REBUILD_MATERIALS") == "1"
+
+
+def exists(name):
+    return EAL.does_asset_exist(f"{FOLDER}/{name}")
 
 
 def get_or_create(name):
@@ -222,6 +235,9 @@ def finish(mat):
 # Commandlets start with an unscanned asset registry; scan so existing assets are found.
 unreal.AssetRegistryHelpers.get_asset_registry().scan_paths_synchronous(["/UnrealRocketViz"], True)
 EAL.make_directory(FOLDER)
-for m in (make_plume(), make_hull(), make_path()):
-    finish(m)
+for name, make in (("M_UrvPlume", make_plume), ("M_UrvHull", make_hull), ("M_UrvPath", make_path)):
+    if exists(name) and not REBUILD:
+        unreal.log(f"[make_materials] {name} exists, kept")
+        continue
+    finish(make())
 unreal.log("[make_materials] done")
