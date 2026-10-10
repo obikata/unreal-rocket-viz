@@ -94,7 +94,9 @@ void AUrvLiveGameMode::ApplyScene(const FString& Json)
 		FUrvSceneSettings S;
 		S.OriginLonLatHeight = LonLatHeight(Obj(Root, TEXT("origin")));
 		S.SolarTime = Num(Root, TEXT("solar_time"), S.SolarTime);
-		S.TimeZone = Num(Root, TEXT("time_zone"), S.TimeZone);
+		// solar_time is local solar time: without an explicit zone, use the origin's
+		// solar meridian (lon / 15 h), or the sun would follow UTC.
+		S.TimeZone = Num(Root, TEXT("time_zone"), S.OriginLonLatHeight.X / 15.0);
 		S.IonAccessToken = IonAccessToken;
 		S.ImageryUrlTemplate = ImageryUrlTemplate;
 		Director->Georeference = UrvScene::Setup(World, this, S);

@@ -103,6 +103,8 @@ the content changes.
 ```
 
 - `origin`: georeference origin (degrees, degrees, metres above WGS84).
+- `solar_time` (optional): time of day at the origin [h], local solar time. `time_zone`
+  (optional, [h] from UTC) makes it clock time instead; by default it is `lon / 15`.
 - `ground_ref` (optional): stand a point `above_m` above the streamed
   terrain, e.g. the pad. Either a place (`lon`, `lat`, `height`:
   `AUrvDirector::SetGroundReference`) or `{"entity": id}`: wherever that entity
