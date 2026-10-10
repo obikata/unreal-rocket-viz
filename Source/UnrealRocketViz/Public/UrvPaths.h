@@ -5,7 +5,6 @@
 #include "UrvPaths.generated.h"
 
 class AUrvDirector;
-class ULineBatchComponent;
 
 // How one kind of path is drawn (SCENE "paths", matched by name).
 struct FUrvPathStyle
@@ -57,7 +56,7 @@ public:
 		TArray<FVector> PointsEcef);
 
 	void CyclePathMode();
-	void ToggleTrail() { bShowTrail = !bShowTrail; }
+	void ToggleTrail();
 
 protected:
 	virtual void Tick(float DeltaSeconds) override;
@@ -90,9 +89,6 @@ private:
 	TMap<int32, TArray<FTrailPoint>> Trails;
 	double LastTrailT = -1e300;
 	double LastDisplayT = -1e300;
-
-	UPROPERTY()
-	TObjectPtr<ULineBatchComponent> Lines;
 
 	const FUrvPathStyle& StyleFor(const FString& Name) const;
 	void ClearShown();

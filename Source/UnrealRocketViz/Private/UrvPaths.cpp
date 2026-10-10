@@ -1,7 +1,7 @@
 #include "UrvPaths.h"
 
 #include "CesiumGeoreference.h"
-#include "Components/LineBatchComponent.h"
+#include "DrawDebugHelpers.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
 #include "Engine/World.h"
@@ -27,8 +27,23 @@ AUrvPaths::AUrvPaths()
 {
 	PrimaryActorTick.bCanEverTick = true;
 	PrimaryActorTick.TickGroup = TG_PostUpdateWork;   // after the director has placed the vehicles and the camera moved
-	Lines = CreateDefaultSubobject<ULineBatchComponent>(TEXT("Lines"));
-	RootComponent = Lines;
+}
+
+namespace
+{
+	const TCHAR* ModeName(EUrvPathMode M)
+	{
+		return M == EUrvPathMode::Current ? TEXT("CURRENT") : M == EUrvPathMode::WithGhosts ? TEXT("WITH EARLIER PLANS") : TEXT("HIDDEN");
+	}
+
+	void Notice(const FString& Text)
+	{
+		UE_LOG(LogTemp, Log, TEXT("UnrealRocketViz: %s"), *Text);
+		if (GEngine)
+		{
+			GEngine->AddOnScreenDebugMessage(0x55525650, 2.0f, FColor::White, Text);
+		}
+	}
 }
 
 void AUrvPaths::PushPath(uint32 SenderId, int32 EntityId, const FString& Name, uint32 Version, double SimTime,
@@ -57,6 +72,18 @@ void AUrvPaths::PushPath(uint32 SenderId, int32 EntityId, const FString& Name, u
 void AUrvPaths::CyclePathMode()
 {
 	PathMode = static_cast<EUrvPathMode>((static_cast<uint8>(PathMode) + 1) % 3);
+	Notice(FString::Printf(TEXT("PATHS: %s (%d shown)"), ModeName(PathMode), Shown.Num()));
+}
+
+void AUrvPaths::ToggleTrail()
+{
+	bShowTrail = !bShowTrail;
+	int32 N = 0;
+	for (const TPair<int32, TArray<FTrailPoint>>& Tr : Trails)
+	{
+		N += Tr.Value.Num();
+	}
+	Notice(FString::Printf(TEXT("TRAIL: %s (%d points)"), bShowTrail ? TEXT("ON") : TEXT("OFF"), N));
 }
 
 const FUrvPathStyle& AUrvPaths::StyleFor(const FString& Name) const
@@ -79,7 +106,6 @@ void AUrvPaths::Tick(float DeltaSeconds)
 	const FUrvFrame* F = Director ? Director->GetDisplayFrame() : nullptr;
 	if (!F || !Director->Georeference)
 	{
-		Lines->Flush();
 		return;
 	}
 	const double T = F->SimTime;
@@ -101,6 +127,12 @@ void AUrvPaths::Tick(float DeltaSeconds)
 		{
 			if (Pending[i].SimTime <= T)
 			{
+				UE_LOG(LogTemp, Verbose, TEXT("UnrealRocketViz: path '%s' v%u, %d points"), *Pending[i].Name, Pending[i].Version,
+					Pending[i].Ecef.Num());
+				if (Shown.Num() == 0)
+				{
+					UE_LOG(LogTemp, Log, TEXT("UnrealRocketViz: first path '%s' (%d points)"), *Pending[i].Name, Pending[i].Ecef.Num());
+				}
 				Shown.Add(MoveTemp(Pending[i]));
 				Pending.RemoveAt(i);
 			}
@@ -144,7 +176,6 @@ void AUrvPaths::Tick(float DeltaSeconds)
 
 void AUrvPaths::Draw()
 {
-	Lines->Flush();
 	if (PathMode == EUrvPathMode::Hidden && !bShowTrail)
 	{
 		return;
@@ -170,9 +201,11 @@ void AUrvPaths::Draw()
 			PixelAt1 = 2.0 * FMath::Tan(HalfFov) / FMath::Max(Viewport.X, 1.0);
 		}
 	}
-	auto Segment = [this, &Cam, PixelAt1](const FVector& A, const FVector& B, const FLinearColor& C, double Px) {
+	// One-frame lines in the world's line batcher (redrawn every tick).
+	UWorld* World = GetWorld();
+	auto Segment = [World, &Cam, PixelAt1](const FVector& A, const FVector& B, const FLinearColor& C, double Px) {
 		const double D = FVector::Dist(Cam, 0.5 * (A + B));
-		Lines->DrawLine(A, B, C, SDPG_World, float(Px * D * PixelAt1));
+		DrawDebugLine(World, A, B, C.ToFColor(true), false, -1.0f, SDPG_World, float(Px * D * PixelAt1));
 	};
 
 	if (PathMode != EUrvPathMode::Hidden)
