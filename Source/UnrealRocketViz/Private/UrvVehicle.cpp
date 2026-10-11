@@ -13,6 +13,8 @@ namespace
 	constexpr float DaylightNits = 2000.0f;
 	const FLinearColor Charcoal(0.035f, 0.037f, 0.04f);
 	const FLinearColor Gunmetal(0.12f, 0.12f, 0.13f);
+	// Under the 111000 lux sun a 0.85 white blows out; 0.4 reads as white paint.
+	const FLinearColor Paintwork(0.40f, 0.40f, 0.41f);
 	// Basic shapes are 1 m along their Z axis and centred (cone tip at +Z).
 	const FRotator TipForward(-90.0, 0.0, 0.0);
 	const FRotator TipAft(90.0, 0.0, 0.0);
@@ -121,10 +123,10 @@ void AUrvVehicle::Build(const FUrvStageLook& InLook)
 void AUrvVehicle::BuildProceduralBody()
 {
 	const double X0 = Look.StartX, D = Look.Diameter;
-	AddMesh(Cylinder, FVector(X0 + Look.Length / 2, 0, 0), FVector(D, D, Look.Length), TipForward);
+	Paint(AddMesh(Cylinder, FVector(X0 + Look.Length / 2, 0, 0), FVector(D, D, Look.Length), TipForward), Paintwork, 0.45f);
 	if (Look.NoseLength > 0.0)
 	{
-		AddMesh(Cone, FVector(X0 + Look.Length + Look.NoseLength / 2, 0, 0), FVector(D, D, Look.NoseLength), TipForward);
+		Paint(AddMesh(Cone, FVector(X0 + Look.Length + Look.NoseLength / 2, 0, 0), FVector(D, D, Look.NoseLength), TipForward), Paintwork, 0.45f);
 	}
 	for (int32 i = 0; i < Look.Fins; ++i)
 	{
@@ -133,6 +135,7 @@ void AUrvVehicle::BuildProceduralBody()
 		UStaticMeshComponent* Fin = AddMesh(Cube, FVector(X0 + 0.08 * Look.Length, 0, 0) + Out,
 			FVector(0.16 * Look.Length, 0.04 * D, 0.6 * D), FRotator::ZeroRotator);
 		Fin->SetRelativeRotation(Roll);
+		Paint(Fin, Paintwork, 0.45f);
 	}
 	const double B = Look.BellDiameter;
 	Paint(AddMesh(Cone, FVector(X0 - B / 2, 0, 0), FVector(B, B, B), TipForward), Gunmetal, 0.25f);

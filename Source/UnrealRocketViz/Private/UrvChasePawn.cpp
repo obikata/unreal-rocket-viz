@@ -47,6 +47,8 @@ AUrvChasePawn::AUrvChasePawn()
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(Arm);
 	Camera->SetFieldOfView(ChaseFovDeg);
+	Camera->PostProcessSettings.bOverride_AutoExposureBias = true;
+	Camera->PostProcessSettings.AutoExposureBias = ExposureBiasEv;
 }
 
 void AUrvChasePawn::BeginPlay()

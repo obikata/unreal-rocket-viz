@@ -124,8 +124,9 @@ private:
 	int32 NextCut = 0;
 	double Yaw = 150.0;
 	double Pitch = -8.0;
-	double ArmM = 110.0;
-	float ChaseFovDeg = 50.0f;
+	double ArmM = 160.0;
+	float ChaseFovDeg = 65.0f;
+	float ExposureBiasEv = 0.5f;   // offset from Cesium's daylight auto exposure [EV]
 	float PaniniNow = -1.0f;
 
 	// Drone state.

@@ -17,14 +17,17 @@ namespace
 {
 	FString Key(int32 Entity, const FString& Name) { return FString::Printf(TEXT("%d/%s"), Entity, *Name); }
 
-	// 0 green, 0.5 amber, 1 red.
-	// Tracking error ramp: white (on the plan) -> amber -> red. No green: it vanishes on vegetation.
-	FLinearColor Heat(double K)
+	// One luminous azure accent, a near-white core, a restrained dark outline, an amber objective ring;
+	// warm colours only for tracking error, where they mean something.
+	const FUrvPalette Pal = {{0.31f, 0.73f, 1.00f}, {1.00f, 0.62f, 0.05f}, {0.36f, 0.78f, 1.00f}, {1.00f, 0.69f, 0.00f}, {1.00f, 0.17f, 0.13f}, 0.45f, 0.40f};
+
+	// Tracking error ramp: ok -> mid -> bad.
+	FLinearColor Heat(const FUrvPalette& P, double K)
 	{
 		K = FMath::Clamp(K, 0.0, 1.0);
-		const FLinearColor W(1.00f, 0.97f, 0.92f), A(1.00f, 0.69f, 0.00f), R(1.00f, 0.17f, 0.13f);
-		return K < 0.5 ? FMath::Lerp(W, A, float(K * 2.0)) : FMath::Lerp(A, R, float(K * 2.0 - 1.0));
-	}}
+		return K < 0.5 ? FMath::Lerp(P.TrailOk, P.TrailMid, float(K * 2.0)) : FMath::Lerp(P.TrailMid, P.TrailBad, float(K * 2.0 - 1.0));
+	}
+}
 
 AUrvPaths::AUrvPaths()
 {
@@ -275,7 +278,7 @@ namespace
 		}
 
 		// A flat ring around Centre in the plane normal to Up, of on-screen width Px.
-		void Ring(const FVector& Centre, const FVector& Up, double RadiusCm, double Px, const FLinearColor& Col)
+		void Ring(const FVector& Centre, const FVector& Up, double RadiusCm, double Px, const FLinearColor& Col, float CoreW = 1.0f)
 		{
 			const FVector X = FVector::CrossProduct(Up, FMath::Abs(Up.Z) < 0.9 ? FVector::UpVector : FVector::ForwardVector).GetSafeNormal();
 			const FVector Y = FVector::CrossProduct(Up, X);
@@ -290,8 +293,8 @@ namespace
 				V.Add(Centre + R * (RadiusCm + H));
 				UV0.Add(FVector2D(A * RadiusCm / 100.0, 0.0));
 				UV0.Add(FVector2D(A * RadiusCm / 100.0, 1.0));
-				UV1.Add(FVector2D(0.0, 1.0));
-				UV1.Add(FVector2D(0.0, 1.0));
+				UV1.Add(FVector2D(0.0, CoreW));
+				UV1.Add(FVector2D(0.0, CoreW));
 				C.Add(Col);
 				C.Add(Col);
 				if (k > 0)
@@ -344,8 +347,9 @@ void AUrvPaths::Draw(const FUrvFrame& F)
 	Outline.Cam = Body.Cam = Core.Cam = R.Cam;
 	Outline.PixelAt1 = Body.PixelAt1 = Core.PixelAt1 = R.PixelAt1;
 	const FLinearColor Ink(0.0f, 0.0f, 0.0f, 1.0f);
-	const FLinearColor Target(1.00f, 0.76f, 0.10f);   // objective amber
+	const FLinearColor Target = Pal.Target;
 	const float Op = Opacity;
+	const float OL = Pal.OutlineAlpha / 0.55f;   // outline strength relative to the original look
 
 	if (PathMode != EUrvPathMode::Hidden)
 	{
@@ -371,10 +375,9 @@ void AUrvPaths::Draw(const FUrvFrame& F)
 			if (Age > 0)
 			{
 				// An earlier plan: thin, greyed, fading with age; a faint outline keeps it readable.
-				const float A = 0.45f * Op / float(Age);
-				const FLinearColor G = WithAlpha(FMath::Lerp(S.Color, FLinearColor(0.80f, 0.78f, 0.86f), 0.55f), A);
-				Outline.Strip(W, 0.7 * LinePixels, 0.0f, 0.4f, [&Ink, A](int32) { return WithAlpha(Ink, 0.5f * A); });
-				Body.Strip(W, 0.35 * LinePixels, 0.0f, 1.0f, [&G](int32) { return G; });
+				const float A = 0.32f * Op / float(Age);
+				const FLinearColor G = WithAlpha(FMath::Lerp(Styles.Num() > 0 && &S == &Styles[0] ? Pal.Route : S.Color, FLinearColor(0.80f, 0.80f, 0.84f), 0.35f), A);
+				Body.Strip(W, 0.30 * LinePixels, 0.0f, 1.8f, [&G](int32) { return G; });
 				continue;
 			}
 			// The newest: dim where the vehicle has already been, bright ahead, pulses toward the end.
@@ -392,23 +395,28 @@ void AUrvPaths::Draw(const FUrvFrame& F)
 					}
 				}
 			}
-			const FLinearColor Col = S.Color;
-			const FLinearColor Hot = FMath::Lerp(S.Color, FLinearColor::White, 0.7f);
-			const float Flow = S.bDashed ? 0.0f : 1.0f;
-			auto Fade = [Here, Op](int32 k) { return k < Here ? 0.3f * Op : Op; };
-			Outline.Strip(W, 1.5 * LinePixels, 0.0f, 0.5f, [&Ink, &Fade](int32 k) { return WithAlpha(Ink, 0.55f * Fade(k)); });
-			Body.Strip(W, LinePixels, Flow, 1.0f, [&Col, &Fade](int32 k) { return WithAlpha(Col, Fade(k)); });
-			Core.Strip(W, 0.3 * LinePixels, Flow, 1.0f, [&Hot, &Fade](int32 k) { return WithAlpha(Hot, Fade(k)); });
+			const bool bRoute = Styles.Num() > 0 && &S == &Styles[0];
+			const FLinearColor Col = bRoute ? Pal.Route : S.Color;
+			const FLinearColor Hot = FMath::Lerp(Col, FLinearColor::White, Pal.CoreMix);
+			const float Flow = S.bDashed ? 0.0f : 0.3f;   // a quiet shimmer toward the end, not a strobe
+			auto Fade = [Here, Op](int32 k) { return k < Here ? 0.5f * Op : Op; };
+			Outline.Strip(W, 0.85 * LinePixels, 0.0f, 3.2f, [&Ink, &Fade, OL](int32 k) { return WithAlpha(Ink, OL * 0.55f * Fade(k)); });
+			Body.Strip(W, 0.9 * LinePixels, Flow, 2.6f, [&Col, &Fade](int32 k) { return WithAlpha(Col, Fade(k)); });
+			Core.Strip(W, 0.28 * LinePixels, Flow, 1.0f, [&Hot, &Fade](int32 k) { return WithAlpha(Hot, Fade(k)); });
 
 			// The end of the plan (e.g. the landing target): an amber objective ring with a slow outgoing pulse.
 			const FVector End = W.Last();
 			const FVector Up = Geo->TransformEarthCenteredEarthFixedDirectionToUnreal(P.Ecef.Last().GetSafeNormal()).GetSafeNormal();
 			const FVector Centre = End + Up * 30.0;
 			const double Ph = FMath::Fmod(Now, 2.0) / 2.0;
-			Outline.Ring(Centre, Up, 900.0, 0.9 * LinePixels, WithAlpha(Ink, 0.5f * Op));
-			Body.Ring(Centre, Up, 900.0, 0.55 * LinePixels, WithAlpha(Target, Op));
-			Core.Ring(Centre, Up, 900.0, 0.18 * LinePixels, WithAlpha(FMath::Lerp(Target, FLinearColor::White, 0.7f), Op));
-			Body.Ring(Centre, Up, 900.0 + 2600.0 * Ph, 0.35 * LinePixels, WithAlpha(Target, float(0.7 * Op * (1.0 - Ph))));
+			// 15 m radius, drawn heavy, plus a beacon column so it reads from afar and on bright sand.
+			constexpr double RingCm = 1500.0;
+			Outline.Ring(Centre, Up, RingCm, 1.0 * LinePixels, WithAlpha(Ink, 0.6f * Op), 3.5f);
+			Body.Ring(Centre, Up, RingCm, 0.65 * LinePixels, WithAlpha(Target, Op), 3.0f);
+			Core.Ring(Centre, Up, RingCm, 0.2 * LinePixels, WithAlpha(FMath::Lerp(Target, FLinearColor::White, 0.35f), Op));
+			Body.Ring(Centre, Up, RingCm + 3500.0 * Ph, 0.3 * LinePixels, WithAlpha(Target, float(0.6 * Op * (1.0 - Ph))), 2.0f);
+			const TArray<FVector> Beacon = {Centre, Centre + Up * 8000.0};
+			Body.Strip(Beacon, 0.4 * LinePixels, 0.0f, 2.0f, [&Target, Op](int32 k) { return WithAlpha(Target, k == 0 ? Op : 0.0f); });
 		}
 	}
 
@@ -429,10 +437,10 @@ void AUrvPaths::Draw(const FUrvFrame& F)
 				const float Age = N > 1 ? float(k) / float(N - 1) : 1.0f;   // 0 oldest, 1 newest
 				return Op * (0.05f + 0.95f * Age * Age);
 			};
-			Outline.Strip(W, 1.1 * LinePixels, 0.0f, 0.5f, [&Ink, &Fade](int32 k) { return WithAlpha(Ink, 0.5f * Fade(k)); });
-			Body.Strip(W, 0.6 * LinePixels, 0.0f, 1.0f, [&Pts, Max, &Fade](int32 k) {
+			Outline.Strip(W, 0.65 * LinePixels, 0.0f, 2.8f, [&Ink, &Fade, OL](int32 k) { return WithAlpha(Ink, OL * 0.5f * Fade(k)); });
+			Body.Strip(W, 0.5 * LinePixels, 0.0f, 2.2f, [&Pts, Max, &Fade](int32 k) {
 				const FTrailPoint& P = Pts[k];
-				const FLinearColor Base = P.bHasValue && Max > 0.0 ? Heat(P.Value / Max) : FLinearColor(1.0f, 0.97f, 0.92f);
+				const FLinearColor Base = P.bHasValue && Max > 0.0 ? Heat(Pal, P.Value / Max) : Pal.TrailOk;
 				return WithAlpha(Base, Fade(k));
 			});
 		}

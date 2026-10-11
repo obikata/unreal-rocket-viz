@@ -10,6 +10,18 @@ class UMaterialInstanceDynamic;
 class UProceduralMeshComponent;
 struct FUrvFrame;
 
+// The look of all paths. Overrides the SCENE colour of the route.
+struct FUrvPalette
+{
+	FLinearColor Route;      // the newest plan (the first style's colour)
+	FLinearColor Target;     // objective ring at the end of the plan
+	FLinearColor TrailOk;    // trail where tracking error is zero
+	FLinearColor TrailMid;
+	FLinearColor TrailBad;
+	float OutlineAlpha;      // strength of the dark outline, 0 = none
+	float CoreMix;           // how far the core goes toward white, 0..1
+};
+
 // How one kind of path is drawn (SCENE "paths", matched by name).
 struct FUrvPathStyle
 {
@@ -54,8 +66,8 @@ public:
 	bool bShowTrail = true;
 	// Emissive brightness relative to a daylit scene (Cesium's physical sun exposes for
 	// ~2000 nits, like the plume): 1 is about as bright as a sunlit white surface.
-	float Glow = 3.0f;
-	double LinePixels = 26.0;       // on-screen width of the newest path's ribbon, glow included [px]
+	float Glow = 10.0f;
+	double LinePixels = 24.0;       // on-screen width of the newest path's ribbon, glow included [px]
 	float Opacity = 0.95f;          // of the newest path; ghosts and the trail scale from it
 	double TrailSpacing = 0.1;      // [s] of sim time between trail points
 	int32 TrailMaxPoints = 6000;
