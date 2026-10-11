@@ -57,8 +57,15 @@ $UE/Engine/Binaries/Linux/UnrealEditor "$P/RocketVizHost.uproject" -UrvGroup=non
   guidance plan, earlier plans as ghosts, flown trails, P/T/H keys. Function works
   on Yohei's machine. **The visual style is not accepted yet.** Already rejected:
   plain debug lines; cyan glow; pastel cyan; magenta/amber three-layer
-  (outline + body + core). Next step: get Yohei's direction (a screenshot, or a
+  (outline + body + core). Current candidate (c032157, `FUrvPalette`): azure route,
+  amber objective ring + beacon, white->amber->red trail. Yohei found it dark at
+  first; now `Glow` 10, chase exposure bias +0.5 EV, which looks "much better"
+  but is not signed off. Next step: get Yohei's direction (a screenshot, or a
   reference look) before another round. A key that cycles a few palettes live
   would make comparing quick. Style knobs are on `AUrvPaths`: `Glow`,
-  `LinePixels`, `Opacity`, and `FUrvPathStyle`.
-- `M_UrvPath.uasset` needs committing (generated on Yohei's machine).
+  `LinePixels`, `Opacity`, and `FUrvPalette` / `FUrvPathStyle`.
+- Chase camera defaults changed: FOV 65, arm 160 m (Yohei found it too close).
+- Lumen warning "Cached lighting ... clipped": host `Config/DefaultEngine.ini` sets
+  `r.EyeAdaptation.CachedLightingPreExposure=10`; not confirmed gone yet.
+- Cesium ion: the project default token must be set and saved in the host project
+  (otherwise 401 and no terrain).
