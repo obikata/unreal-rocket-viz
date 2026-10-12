@@ -3,6 +3,33 @@
 namespace
 {
 	constexpr int32 Rate = 48000;
+	constexpr float VentLevel = 1.6f;   // vent hiss relative to the roar at full gain
+}
+
+UUrvRoarSynth::FBiquad UUrvRoarSynth::MakeHighpass(float F0, float Q, float SampleRate)
+{
+	const float W0 = 2.0f * PI * F0 / SampleRate, Cs = FMath::Cos(W0), Al = FMath::Sin(W0) / (2.0f * Q);
+	const float A0 = 1.0f + Al;
+	FBiquad F;
+	F.B0 = (1.0f + Cs) / 2.0f / A0;
+	F.B1 = -(1.0f + Cs) / A0;
+	F.B2 = F.B0;
+	F.A1 = -2.0f * Cs / A0;
+	F.A2 = (1.0f - Al) / A0;
+	return F;
+}
+
+UUrvRoarSynth::FBiquad UUrvRoarSynth::MakeBandpass(float F0, float Q, float SampleRate)
+{
+	const float W0 = 2.0f * PI * F0 / SampleRate, Cs = FMath::Cos(W0), Al = FMath::Sin(W0) / (2.0f * Q);
+	const float A0 = 1.0f + Al;
+	FBiquad F;
+	F.B0 = Al / A0;
+	F.B1 = 0.0f;
+	F.B2 = -Al / A0;
+	F.A1 = -2.0f * Cs / A0;
+	F.A2 = (1.0f - Al) / A0;
+	return F;
 }
 
 UUrvRoarSynth::UUrvRoarSynth(const FObjectInitializer& ObjectInitializer)
@@ -13,6 +40,8 @@ UUrvRoarSynth::UUrvRoarSynth(const FObjectInitializer& ObjectInitializer)
 	Duration = INDEFINITELY_LOOPING_DURATION;
 	bLooping = false;
 	SoundGroup = SOUNDGROUP_Default;
+	VentHp = MakeHighpass(1500.0f, 0.5f, float(Rate));
+	VentBp = MakeBandpass(3000.0f, 1.2f, float(Rate));
 }
 
 float UUrvRoarSynth::Noise()
@@ -28,6 +57,7 @@ int32 UUrvRoarSynth::OnGeneratePCMAudio(TArray<uint8>& OutAudio, int32 NumSample
 	OutAudio.SetNumUninitialized(NumSamples * sizeof(int16));
 	int16* Out = reinterpret_cast<int16*>(OutAudio.GetData());
 	const float TG = Gain.load(), TFc = CutoffHz.load(), TCr = Crackle.load(), TRu = Rumble.load();
+	const float TVg = VentGain.load(), TVFc = VentCutoffHz.load();
 	const float Glide = 1.0f - FMath::Exp(-1.0f / (0.05f * Rate));   // 50 ms
 
 	for (int32 i = 0; i < NumSamples; ++i)
@@ -36,6 +66,8 @@ int32 UUrvRoarSynth::OnGeneratePCMAudio(TArray<uint8>& OutAudio, int32 NumSample
 		Fc += (TFc - Fc) * Glide;
 		Cr += (TCr - Cr) * Glide;
 		Ru += (TRu - Ru) * Glide;
+		Vg += (TVg - Vg) * Glide;
+		VFc += (TVFc - VFc) * Glide;
 		const float W = Noise();
 
 		// Pink noise (Paul Kellet's filter): the broadband roar.
@@ -77,7 +109,11 @@ int32 UUrvRoarSynth::OnGeneratePCMAudio(TArray<uint8>& OutAudio, int32 NumSample
 		Lp1 += (Mid - Lp1) * A;
 		Lp2 += (Lp1 - Lp2) * A;
 
-		const float Mix = (Lp2 + Low * Ru) * G;
+		// Cutoff vent: white noise high-passed at 1.5 kHz, band-passed at 3 kHz, dulled by distance.
+		const float AV = 1.0f - FMath::Exp(-2.0f * PI * FMath::Clamp(VFc, 400.0f, 18000.0f) / Rate);
+		VentLp += (VentBp.Process(VentHp.Process(W)) - VentLp) * AV;
+
+		const float Mix = (Lp2 + Low * Ru) * G + VentLp * Vg * VentLevel;
 		Out[i] = int16(FMath::Clamp(FMath::Tanh(Mix * 1.5f) * 30000.0f, -32767.0f, 32767.0f));
 	}
 	return NumSamples;

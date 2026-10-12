@@ -7,7 +7,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "Tools"))
-from urv_wire import Entity, encode_event, encode_frame, encode_scene  # noqa: E402
+from urv_wire import Entity, encode_event, encode_frame, encode_path, encode_scene  # noqa: E402
 
 OUT = Path(__file__).resolve().parent / "golden"
 SENDER = 0xC0FFEE01
@@ -28,6 +28,8 @@ def packets():
         "ground_ref": {"entity": 1, "above_m": 2.5},
         "entities": [{"id": 1, "label": "BOOSTER", "label_local": "ブースター",
                       "look": {"start_x": 1.6, "length": 46.5, "diameter": 3.66}}]})
+    yield "path", encode_path(11, SENDER, 20.5, 1, "plan", 42,
+                              [(918263.5, -5529341.25, 3026845.75), (918250.0, -5529300.5, 3026800.25), (-1.5, 0.0, 2.0)])
 
 
 if __name__ == "__main__":

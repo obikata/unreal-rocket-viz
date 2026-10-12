@@ -35,7 +35,9 @@ come from the sender's SCENE messages.
    streamed terrain, and the HUD switches to `UDP 47686  50 HZ`.
 
 Keys: `1`–`9` pick the target, `V` cycles chase / drone / onboard, `A`
-resumes the automatic cuts. Drag to orbit, wheel to zoom.
+resumes the automatic cuts, `P` cycles the sender's paths (current / with
+earlier versions / hidden), `T` toggles the flown trails, `H` hides the HUD.
+Drag to orbit, wheel to zoom.
 
 ## Networking
 

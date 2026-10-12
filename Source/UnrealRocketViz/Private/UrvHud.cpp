@@ -11,6 +11,15 @@ int32 AUrvHud::GetFollowedIndex() const
 	return Cam ? Cam->GetTargetIndex() : 0;
 }
 
+void AUrvHud::ToggleOverlay()
+{
+	if (Overlay.IsValid())
+	{
+		const bool bShown = Overlay->GetVisibility() != EVisibility::Collapsed;
+		Overlay->SetVisibility(bShown ? EVisibility::Collapsed : EVisibility::HitTestInvisible);
+	}
+}
+
 void AUrvHud::BeginPlay()
 {
 	Super::BeginPlay();

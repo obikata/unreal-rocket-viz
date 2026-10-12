@@ -13,6 +13,7 @@
 #include "Sockets.h"
 #include "SocketSubsystem.h"
 #include "UrvDirector.h"
+#include "UrvPaths.h"
 
 AUrvUdpReceiver::AUrvUdpReceiver()
 {
@@ -158,6 +159,17 @@ void AUrvUdpReceiver::HandleDatagram(const uint8* Data, int32 Size)
 	case UrvWire::EType::Scene:
 		EmitScene(UTF8_TO_TCHAR(M.SceneJson.c_str()));
 		break;
+	case UrvWire::EType::Path:
+	{
+		TArray<FVector> Points;
+		Points.Reserve(int32(M.PathPoints.size()));
+		for (const auto& P : M.PathPoints)
+		{
+			Points.Add(FVector(P[0], P[1], P[2]));
+		}
+		EmitPath(M.Header.SenderId, M.PathEntity, UTF8_TO_TCHAR(M.PathName.c_str()), M.PathVersion, M.SimTime, MoveTemp(Points));
+		break;
+	}
 	}
 }
 
@@ -194,6 +206,15 @@ void AUrvUdpReceiver::EmitEvent(uint32 SenderId, uint32 EventId, double SimTime,
 	if (Director && Dedup.Accept(SenderId, EventId))
 	{
 		Director->PushEvent(SimTime, Name);
+	}
+}
+
+void AUrvUdpReceiver::EmitPath(uint32 SenderId, int32 EntityId, const FString& Name, uint32 Version, double SimTime,
+	TArray<FVector> PointsEcef)
+{
+	if (Paths)
+	{
+		Paths->PushPath(SenderId, EntityId, Name, Version, SimTime, MoveTemp(PointsEcef));
 	}
 }
 

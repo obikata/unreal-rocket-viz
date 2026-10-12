@@ -8,6 +8,7 @@ class UCameraComponent;
 class USpringArmComponent;
 class AUrvDirector;
 class AUrvSoundscape;
+class AUrvPaths;
 class AUrvVehicle;
 
 enum class EUrvView : uint8
@@ -91,6 +92,10 @@ public:
 	UPROPERTY()
 	TObjectPtr<AUrvSoundscape> Soundscape;
 
+	// Optional: P cycles its paths (current / with earlier plans / hidden), T toggles the trails.
+	UPROPERTY()
+	TObjectPtr<AUrvPaths> Paths;
+
 	void SetView(EUrvView InView, int32 InTarget);
 	// Chase camera orbit: pitch and yaw [deg] and distance [m].
 	void SetOrbit(double InPitch, double InYaw, double InArmM) { Pitch = InPitch; Yaw = InYaw; ArmM = InArmM; }
@@ -119,8 +124,9 @@ private:
 	int32 NextCut = 0;
 	double Yaw = 150.0;
 	double Pitch = -8.0;
-	double ArmM = 110.0;
-	float ChaseFovDeg = 50.0f;
+	double ArmM = 160.0;
+	float ChaseFovDeg = 65.0f;
+	float ExposureBiasEv = 0.5f;   // offset from Cesium's daylight auto exposure [EV]
 	float PaniniNow = -1.0f;
 
 	// Drone state.

@@ -11,6 +11,34 @@ namespace
 {
 	constexpr double SoundCmPerM = 100.0;
 	constexpr double KeepS = 180.0;   // history long enough for sound from about 60 km
+	constexpr double VentEndS = 15.0;   // the hiss has faded to nothing by then
+
+	// Vent hiss level 0..1 this long after the engine went off: sharp attack, plateau, slow decay, long tail.
+	double VentEnvelope(double Age)
+	{
+		if (Age <= 0.0 || Age >= VentEndS)
+		{
+			return 0.0;
+		}
+		double G;
+		if (Age < 0.08)
+		{
+			G = 0.35 * Age / 0.08;
+		}
+		else if (Age < 2.0)
+		{
+			G = FMath::Lerp(0.35, 0.30, (Age - 0.08) / (2.0 - 0.08));
+		}
+		else if (Age < 6.0)
+		{
+			G = FMath::Lerp(0.30, 0.18, (Age - 2.0) / 4.0);
+		}
+		else
+		{
+			G = 0.18 * FMath::Pow(0.001 / 0.18, (Age - 6.0) / (VentEndS - 6.0));
+		}
+		return G / 0.35;
+	}
 }
 
 AUrvSoundscape::AUrvSoundscape()
@@ -38,10 +66,16 @@ void AUrvSoundscape::Tick(float DeltaSeconds)
 	Super::Tick(DeltaSeconds);
 	Clock += DeltaSeconds;
 	History.SetNum(Vehicles.Num());
+	WasOn.SetNumZeroed(Vehicles.Num());
 	for (int32 v = 0; v < Vehicles.Num(); ++v)
 	{
 		if (const AUrvVehicle* V = Vehicles[v])
 		{
+			if (WasOn[v] && !V->IsEngineOn())
+			{
+				Vents.Add({ Clock, V->GetActorLocation() });
+			}
+			WasOn[v] = V->IsEngineOn();
 			TArray<FSample>& H = History[v];
 			H.Add({ Clock, V->GetActorLocation(), V->IsEngineOn() });
 			int32 Old = 0;
@@ -52,6 +86,8 @@ void AUrvSoundscape::Tick(float DeltaSeconds)
 			H.RemoveAt(0, Old, EAllowShrinking::No);
 		}
 	}
+
+	Vents.RemoveAll([this](const FVent& Vn) { return Clock - Vn.Time > KeepS + VentEndS; });
 
 	APlayerCameraManager* Cam = UGameplayStatics::GetPlayerCameraManager(this, 0);
 	if (!Cam || !Synth)
@@ -98,6 +134,19 @@ void AUrvSoundscape::Tick(float DeltaSeconds)
 			}
 		}
 	}
+	// The loudest vent as heard now: it started when its sound left, Dm / c ago.
+	float VentG = 0.0f, VentCutoff = 20000.0f;
+	for (const FVent& Vn : Vents)
+	{
+		const double Dm = (Ear - Vn.Pos).Size() / SoundCmPerM;
+		const double Level = VentEnvelope(Clock - Vn.Time - Dm / SpeedOfSoundMS) * FMath::Min(1.0, FMath::Pow(ReferenceM / FMath::Max(Dm, 1.0), 0.85));
+		if (Level > VentG)
+		{
+			VentG = float(Level);
+			VentCutoff = float(14000.0 / (1.0 + Dm / 350.0));
+		}
+	}
+
 	if (bHearing && !bWasHearing)
 	{
 		Kick = 1.0;
@@ -110,4 +159,6 @@ void AUrvSoundscape::Tick(float DeltaSeconds)
 	Synth->CutoffHz = Cutoff;
 	Synth->Crackle = Crackle;
 	Synth->Rumble = Rumble;
+	Synth->VentGain = VentG * VentVolume * Volume;
+	Synth->VentCutoffHz = VentCutoff;
 }

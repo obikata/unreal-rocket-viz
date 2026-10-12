@@ -8,6 +8,8 @@
 #include "InputCoreTypes.h"
 #include "UrvDirector.h"
 #include "UrvSoundscape.h"
+#include "UrvHud.h"
+#include "UrvPaths.h"
 #include "UrvVehicle.h"
 
 namespace
@@ -45,6 +47,8 @@ AUrvChasePawn::AUrvChasePawn()
 	Camera = CreateDefaultSubobject<UCameraComponent>(TEXT("Camera"));
 	Camera->SetupAttachment(Arm);
 	Camera->SetFieldOfView(ChaseFovDeg);
+	Camera->PostProcessSettings.bOverride_AutoExposureBias = true;
+	Camera->PostProcessSettings.AutoExposureBias = ExposureBiasEv;
 }
 
 void AUrvChasePawn::BeginPlay()
@@ -90,6 +94,21 @@ void AUrvChasePawn::HandleInput()
 	{
 		View = static_cast<EUrvView>((static_cast<uint8>(View) + 1) % 3);
 		bAutoCuts = false;
+	}
+	if (Paths && PC->WasInputKeyJustPressed(EKeys::P))
+	{
+		Paths->CyclePathMode();
+	}
+	if (Paths && PC->WasInputKeyJustPressed(EKeys::T))
+	{
+		Paths->ToggleTrail();
+	}
+	if (PC->WasInputKeyJustPressed(EKeys::H))
+	{
+		if (AUrvHud* Hud = Cast<AUrvHud>(PC->GetHUD()))
+		{
+			Hud->ToggleOverlay();
+		}
 	}
 	if (PC->WasInputKeyJustPressed(EKeys::A))
 	{
