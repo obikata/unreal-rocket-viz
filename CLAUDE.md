@@ -52,7 +52,7 @@ $UE/Engine/Binaries/Linux/UnrealEditor "$P/RocketVizHost.uproject" -UrvGroup=non
 - The director settles on the newest frame when the feed stalls for
   max(0.25 s, 3 frame intervals), so a stopped stream does not bob vehicles through the ground.
 
-## Open work (as of 2026-10-11)
+## Open work (as of 2026-10-13)
 - **PR #6 `feat/paths`** (with powered-descent-sim PR #5): PATH messages, the
   guidance plan, earlier plans as ghosts, flown trails, P/T/H keys. Function works
   on Yohei's machine. **The visual style is not accepted yet.** Already rejected:
@@ -65,6 +65,11 @@ $UE/Engine/Binaries/Linux/UnrealEditor "$P/RocketVizHost.uproject" -UrvGroup=non
   would make comparing quick. Style knobs are on `AUrvPaths`: `Glow`,
   `LinePixels`, `Opacity`, and `FUrvPalette` / `FUrvPathStyle`.
 - Chase camera defaults changed: FOV 65, arm 160 m (Yohei found it too close).
+- Post-cutoff vent hiss (01f426f): when an engine goes off, `AUrvSoundscape` plays
+  high-passed noise decaying over ~15 s (distance and speed-of-sound aware). Checked
+  by audio analysis; Yohei listened and found it natural. Knobs: `VentVolume`,
+  `VentLevel` in `UrvRoarSynth.cpp`. The web viewer fades the engine over 3 s on
+  cutoff; here it stops at once, which sounded fine, so no fade was added.
 - Lumen warning "Cached lighting ... clipped": host `Config/DefaultEngine.ini` sets
   `r.EyeAdaptation.CachedLightingPreExposure=10`; not confirmed gone yet.
 - Cesium ion: the project default token must be set and saved in the host project
