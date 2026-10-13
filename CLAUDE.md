@@ -82,8 +82,12 @@ $UE/Engine/Binaries/Linux/UnrealEditor "$P/RocketVizHost.uproject" -UrvGroup=non
      entity reference point, so `start_x` 0), materials and the joint math. Drive
      the engine gimbal from FRAME `gimbal`, and legs / grid fins from named
      channels (e.g. `legs_deploy`, `fins_deploy`, `fin_deflect`), so it stays generic.
-  4. Acceptance: Yohei compares UE against the Blender renders (`shiphero` view,
-     `--sea -2.8` with `droneship-class.glb`); the drone ship is a model too.
+  4. The drone ship (`models/out/droneship-class.glb`, no joints; origin = landing-target
+     centre on the deck top, waterline 2.8 m below) is imported the same way and
+     drawn as an entity the sender declares, standing on the sea surface. The plugin
+     needs nothing ship-specific: an entity with a `model`, and `ground_ref` at sea level.
+  5. Acceptance: Yohei compares UE against the Blender renders (`shiphero` view,
+     `--sea -2.8` with `droneship-class.glb`).
 - **PR #6 `feat/paths`** (with powered-descent-sim PR #5): PATH messages, the
   guidance plan, earlier plans as ghosts, flown trails, P/T/H keys. Function works
   on Yohei's machine. **The visual style is not accepted yet.** Already rejected:
