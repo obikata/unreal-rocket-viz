@@ -66,6 +66,24 @@ $UE/Engine/Binaries/Linux/UnrealEditor "$P/RocketVizHost.uproject" -UrvGroup=non
   Until then the existing `.uasset` blobs are plain git, and `git status` lists them as modified.
 
 ## Open work (as of 2026-10-13)
+- **Next: the real vehicle models from powered-descent-sim** (Yohei wants the same models
+  as the Blender renders). Today a vehicle is a procedural body or a static mesh
+  list set by hand in `OnVehicleSpawned`; no joints move. Plan:
+  1. `Tools/import_models.py` (UE Python, called by `regen_assets.sh`, `$PDS_DIR` =
+     powered-descent-sim checkout): import `models/out/<model>.glb` into
+     `Content/Vehicles/<model>/` **as a hierarchy, not merged**: every manifest
+     joint node stays its own component. Copy `<model>.json` (the joint manifest)
+     next to it. Include the `.glb` hashes in the stamp.
+  2. Plugin-side registry: SCENE `model` (e.g. `falcon9-class`) selects the imported
+     vehicle automatically; no host C++. The procedural look stays the fallback.
+  3. Manifest-driven joints: `local(t) = rest_local * delta(t)`, exactly as
+     `powered-descent-sim/models/joints.py`. That is the reference implementation;
+     `docs/ue5-import.md` there has the import settings, axes, origin (foot plane =
+     entity reference point, so `start_x` 0), materials and the joint math. Drive
+     the engine gimbal from FRAME `gimbal`, and legs / grid fins from named
+     channels (e.g. `legs_deploy`, `fins_deploy`, `fin_deflect`), so it stays generic.
+  4. Acceptance: Yohei compares UE against the Blender renders (`shiphero` view,
+     `--sea -2.8` with `droneship-class.glb`); the drone ship is a model too.
 - **PR #6 `feat/paths`** (with powered-descent-sim PR #5): PATH messages, the
   guidance plan, earlier plans as ghosts, flown trails, P/T/H keys. Function works
   on Yohei's machine. **The visual style is not accepted yet.** Already rejected:
