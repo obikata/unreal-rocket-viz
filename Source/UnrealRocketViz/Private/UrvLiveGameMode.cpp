@@ -137,7 +137,7 @@ void AUrvLiveGameMode::ApplyScene(const FString& Json)
 			}
 			const FUrvStageLook L = Look(Obj(E, TEXT("look")));
 			AUrvVehicle* Veh = World->SpawnActor<AUrvVehicle>();
-			Veh->Build(L);
+			Veh->Build(L, Str(E, TEXT("model")));
 			Vehicles.Add(Id, Veh);
 			const FString Label = Str(E, TEXT("label"), FString::Printf(TEXT("ENTITY %d"), Id));
 			Director->Bind(Id, Veh, Label);

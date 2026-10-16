@@ -2,6 +2,12 @@
 
 #include "Components/PointLightComponent.h"
 #include "Components/StaticMeshComponent.h"
+#include "Dom/JsonObject.h"
+#include "Interfaces/IPluginManager.h"
+#include "Misc/FileHelper.h"
+#include "Misc/Paths.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
 #include "Materials/MaterialInstanceDynamic.h"
 #include "UObject/ConstructorHelpers.h"
 
@@ -107,10 +113,115 @@ bool AUrvVehicle::BuildMeshBody()
 	return Loaded > 0;
 }
 
-void AUrvVehicle::Build(const FUrvStageLook& InLook)
+// The sim's models (powered-descent-sim models/out, imported by Tools/import_models.py) are
+// modelled in the sim's body frame (z up the vehicle axis, origin on the foot plane). Interchange
+// imports each mesh as (x, -y, z) in cm; <model>.nodes.json holds the node tree the same way. The
+// viewer's body frame has +X = nose and the director reflects +Z, so a mesh vector (x, y, z) lands
+// at (z, x, y) in the actor.
+bool AUrvVehicle::BuildFromModel(const FString& Model)
+{
+	// The name comes from a sender: letters, digits, '-' and '_' only.
+	if (Model.IsEmpty())
+	{
+		return false;
+	}
+	for (const TCHAR Ch : Model)
+	{
+		if (!FChar::IsAlnum(Ch) && Ch != TEXT('-') && Ch != TEXT('_'))
+		{
+			return false;
+		}
+	}
+	const TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(TEXT("UnrealRocketViz"));
+	FString Text;
+	if (!Plugin.IsValid() || !FFileHelper::LoadFileToString(Text,
+			*FPaths::Combine(Plugin->GetContentDir(), TEXT("Vehicles"), Model, Model + TEXT(".nodes.json"))))
+	{
+		return false;
+	}
+	TSharedPtr<FJsonObject> Doc;
+	if (!FJsonSerializer::Deserialize(TJsonReaderFactory<>::Create(Text), Doc) || !Doc.IsValid())
+	{
+		return false;
+	}
+	const TArray<TSharedPtr<FJsonValue>>* Nodes = nullptr;
+	if (!Doc->TryGetArrayField(TEXT("nodes"), Nodes))
+	{
+		return false;
+	}
+
+	ModelRoot = NewObject<USceneComponent>(this);
+	ModelRoot->SetupAttachment(Root);
+	ModelRoot->SetRelativeRotation(FMatrix(FVector(0, 1, 0), FVector(0, 0, 1), FVector(1, 0, 0), FVector::ZeroVector).ToQuat());
+	ModelRoot->RegisterComponent();
+
+	auto Vec = [](const TSharedPtr<FJsonObject>& O, const TCHAR* Key, int32 N, double* Out)
+	{
+		const TArray<TSharedPtr<FJsonValue>>* A = nullptr;
+		if (O->TryGetArrayField(Key, A) && A->Num() == N)
+		{
+			for (int32 I = 0; I < N; ++I)
+			{
+				Out[I] = (*A)[I]->AsNumber();
+			}
+		}
+	};
+
+	TArray<USceneComponent*> Comps;
+	int32 Meshes = 0, Missing = 0;
+	for (const TSharedPtr<FJsonValue>& V : *Nodes)
+	{
+		const TSharedPtr<FJsonObject> N = V->AsObject();
+		const FString Name = N->GetStringField(TEXT("name"));
+		const int32 Parent = int32(N->GetNumberField(TEXT("parent")));
+		FString MeshName;
+		N->TryGetStringField(TEXT("mesh"), MeshName);
+
+		double T[3] = {0, 0, 0}, Q[4] = {0, 0, 0, 1}, S[3] = {1, 1, 1};
+		Vec(N, TEXT("t"), 3, T);
+		Vec(N, TEXT("q"), 4, Q);
+		Vec(N, TEXT("s"), 3, S);
+		const FTransform Rest(FQuat(Q[0], Q[1], Q[2], Q[3]).GetNormalized(), FVector(T[0], T[1], T[2]), FVector(S[0], S[1], S[2]));
+
+		USceneComponent* C = nullptr;
+		if (MeshName.IsEmpty())
+		{
+			C = NewObject<USceneComponent>(this);
+		}
+		else
+		{
+			UStaticMeshComponent* M = NewObject<UStaticMeshComponent>(this);
+			const FString Path = FString::Printf(TEXT("/UnrealRocketViz/Vehicles/%s/%s/StaticMeshes/%s.%s"), *Model, *Model, *MeshName, *MeshName);
+			if (UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet))
+			{
+				M->SetStaticMesh(Mesh);
+				++Meshes;
+			}
+			else
+			{
+				++Missing;
+			}
+			M->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			C = M;
+		}
+		C->SetupAttachment(Comps.IsValidIndex(Parent) ? Comps[Parent] : ModelRoot.Get());
+		C->SetRelativeTransform(Rest);
+		C->RegisterComponent();
+		Comps.Add(C);
+		Joints.Add(FName(*Name), C);
+		RestLocal.Add(FName(*Name), Rest);
+	}
+	if (Missing > 0)
+	{
+		UE_LOG(LogTemp, Warning, TEXT("UnrealRocketViz: model %s: %d meshes not found (run Tools/import_models.py)"), *Model, Missing);
+	}
+	return Meshes > 0;
+}
+
+void AUrvVehicle::Build(const FUrvStageLook& InLook, const FString& InModel)
 {
 	Look = InLook;
-	if (Look.Meshes.Num() == 0 || !BuildMeshBody())
+	if (!BuildFromModel(InModel) && (Look.Meshes.Num() == 0 || !BuildMeshBody()))
 	{
 		BuildProceduralBody();
 	}

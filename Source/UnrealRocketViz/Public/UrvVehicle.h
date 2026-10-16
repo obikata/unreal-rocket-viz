@@ -51,7 +51,10 @@ class UNREALROCKETVIZ_API AUrvVehicle : public AActor
 public:
 	AUrvVehicle();
 
-	void Build(const FUrvStageLook& InLook);
+	// Model: a name from SCENE "model" (e.g. "falcon9-class"). When Content/Vehicles/<Model>/ has
+	// been imported (Tools/import_models.py) the vehicle is built from it; otherwise from Look.Meshes,
+	// otherwise procedurally.
+	void Build(const FUrvStageLook& InLook, const FString& InModel = FString());
 	// The plume lengthens as the air thins. Also broadcasts OnEngine.
 	void SetEngine(bool bOn, double AltitudeM);
 
@@ -71,6 +74,7 @@ public:
 private:
 	void BuildProceduralBody();
 	bool BuildMeshBody();
+	bool BuildFromModel(const FString& Model);
 	void BuildPlume();
 	void Paint(UStaticMeshComponent* C, const FLinearColor& Color, float Roughness);
 	UStaticMeshComponent* AddMesh(UStaticMesh* Mesh, const FVector& CenterM, const FVector& SizeM, const FRotator& Rot);
@@ -81,6 +85,9 @@ private:
 	double AltitudeM = 0.0;
 
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
+	UPROPERTY() TObjectPtr<USceneComponent> ModelRoot;                 // glTF body frame -> actor frame
+	UPROPERTY() TMap<FName, TObjectPtr<USceneComponent>> Joints;       // by glTF node name
+	TMap<FName, FTransform> RestLocal;                                  // their rest transforms
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> Plume;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> PlumeCore;   // short, hotter inner cone
 	UPROPERTY() TObjectPtr<UPointLightComponent> Glow;
