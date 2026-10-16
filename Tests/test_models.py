@@ -36,8 +36,17 @@ def test_every_manifest_joint_is_a_node():
     assert joints and set(joints) <= names
 
 
-def test_conversion_negates_y_and_scales_to_cm():
-    # droneship container_0 sits at y = -14 m in the glb; Interchange imports it at +1400 cm
-    n = {x["name"]: x for x in tree("droneship-class")}
-    assert n["container_0_mesh"]["mesh"] == "container_0_mesh"
-    assert n["container_0_mesh"]["t"] == [0.0, 0.0, 0.0]
+def test_root_offset_is_added_to_its_children():
+    # the falcon9-class root lifts the body frame 1.6 m above the foot plane; the first-level
+    # meshes are baked at +160 cm in UE (aft_flare_mesh: glb z -2..55 cm -> UE 158..215 cm)
+    n = {x["name"]: x for x in tree("falcon9-class")}
+    assert n["aft_flare_mesh"]["parent"] == -1
+    assert n["aft_flare_mesh"]["t"] == pytest.approx([0.0, 0.0, 160.0])
+
+
+def test_children_below_the_first_level_keep_their_local_transform():
+    n = {x["name"]: x for x in tree("falcon9-class")}
+    mount = n["leg_00_mount"]
+    assert mount["t"] == pytest.approx([199.0, 0.0, 60.0 + 160.0])
+    leg = n["leg_00"]
+    assert leg["t"] == pytest.approx([0.0, 0.0, 0.0])

@@ -8,11 +8,14 @@ For each model it writes, under Content/Vehicles/<model>/:
   * <model>.nodes.json: the node tree (name, parent, mesh, rest transform) in UE units,
   * <model>.json: the joint manifest, copied from the model.
 
-Interchange imports mesh vertices in the model's body frame, scaled to cm, with y negated
-(the importer's right- to left-handed flip), and does not bake the glTF root's y-up rotation.
-So nodes.json holds each node's rest transform below the root in that same convention:
-translation (x, -y, z) * 100 cm, quaternion (-x, y, -z, w), scale unchanged. The plugin
-rebuilds the hierarchy from it and drives joints with local(t) = rest_local * delta(t).
+Interchange imports every mesh with its node's whole transform baked into the vertices
+(world space = the foot plane frame, z up), scaled to cm, with y negated (the importer's
+right- to left-handed flip); the glTF root's y-up rotation is not baked, its offset is. So
+nodes.json holds each node's rest transform in that same convention: translation
+(x, -y, z) * 100 cm, quaternion (-x, y, -z, w), scale unchanged, with the root's offset above
+the foot plane added to its children. The plugin rebuilds the hierarchy from it, places each
+mesh with the inverse of its parent's rest world transform (the vertices are already in world
+space) and drives joints with local(t) = rest_local * delta(t).
 
 The pure-Python part (node_tree) runs without Unreal and is tested by Tests/test_models.py.
 """
@@ -43,17 +46,22 @@ def node_tree(gltf):
     """Nodes below the scene root, depth first, parents before children.
 
     Each: {name, parent (index into the list, -1 for the root's children), mesh, t, q, s}.
-    The root itself (glTF y-up, offset) is dropped: its rotation is the y-up conversion and
-    its translation is the foot-plane offset, neither is part of the body frame.
+    The root itself is dropped: its rotation is the y-up conversion. Its translation lifts the body
+    frame above the foot plane (glTF y up is body z up: body = (gx, -gz, gy)); that offset is added
+    to its children, so the tree is in the foot-plane frame the imported vertices are in.
     """
     nodes = gltf["nodes"]
     roots = gltf["scenes"][gltf.get("scene", 0)]["nodes"]
     assert len(roots) == 1, "expected one scene root"
     out = []
+    rx, ry, rz = nodes[roots[0]].get("translation", (0.0, 0.0, 0.0))
+    lift = (rx, -rz, ry)   # the root's offset, in the body frame (m)
 
     def add(i, parent):
         n = nodes[i]
         tx, ty, tz = n.get("translation", (0.0, 0.0, 0.0))
+        if parent < 0:
+            tx, ty, tz = tx + lift[0], ty + lift[1], tz + lift[2]
         qx, qy, qz, qw = n.get("rotation", (0.0, 0.0, 0.0, 1.0))
         index = len(out)
         out.append({

@@ -114,10 +114,13 @@ bool AUrvVehicle::BuildMeshBody()
 }
 
 // The sim's models (powered-descent-sim models/out, imported by Tools/import_models.py) are
-// modelled in the sim's body frame (z up the vehicle axis, origin on the foot plane). Interchange
-// imports each mesh as (x, -y, z) in cm; <model>.nodes.json holds the node tree the same way. The
-// viewer's body frame has +X = nose and the director reflects +Z, so a mesh vector (x, y, z) lands
-// at (z, x, y) in the actor.
+// modelled in the sim's body frame (z up the vehicle axis). Interchange bakes each node's whole
+// transform into its mesh, so the StaticMeshes are in world space: the foot plane frame, z up, cm,
+// y negated. <model>.nodes.json holds the node tree in the same convention. A mesh is therefore
+// attached to its node with the inverse of that node's rest world transform (at rest it lands where
+// it was baked; a joint then moves it about the joint's origin). The viewer's body frame has
+// +X = nose and the director reflects +Z, so a vector (x, y, z) of that frame lands at (z, x, y)
+// in the actor.
 bool AUrvVehicle::BuildFromModel(const FString& Model)
 {
 	// The name comes from a sender: letters, digits, '-' and '_' only.
@@ -168,6 +171,7 @@ bool AUrvVehicle::BuildFromModel(const FString& Model)
 	};
 
 	TArray<USceneComponent*> Comps;
+	TArray<FTransform> World;   // rest world transforms (the frame the meshes were baked in)
 	int32 Meshes = 0, Missing = 0;
 	for (const TSharedPtr<FJsonValue>& V : *Nodes)
 	{
@@ -182,34 +186,34 @@ bool AUrvVehicle::BuildFromModel(const FString& Model)
 		Vec(N, TEXT("q"), 4, Q);
 		Vec(N, TEXT("s"), 3, S);
 		const FTransform Rest(FQuat(Q[0], Q[1], Q[2], Q[3]).GetNormalized(), FVector(T[0], T[1], T[2]), FVector(S[0], S[1], S[2]));
+		const FTransform ParentWorld = World.IsValidIndex(Parent) ? World[Parent] : FTransform::Identity;
+		World.Add(Rest * ParentWorld);
 
-		USceneComponent* C = nullptr;
-		if (MeshName.IsEmpty())
-		{
-			C = NewObject<USceneComponent>(this);
-		}
-		else
-		{
-			UStaticMeshComponent* M = NewObject<UStaticMeshComponent>(this);
-			const FString Path = FString::Printf(TEXT("/UnrealRocketViz/Vehicles/%s/%s/StaticMeshes/%s.%s"), *Model, *Model, *MeshName, *MeshName);
-			if (UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet))
-			{
-				M->SetStaticMesh(Mesh);
-				++Meshes;
-			}
-			else
-			{
-				++Missing;
-			}
-			M->SetCollisionEnabled(ECollisionEnabled::NoCollision);
-			C = M;
-		}
+		USceneComponent* C = NewObject<USceneComponent>(this);
 		C->SetupAttachment(Comps.IsValidIndex(Parent) ? Comps[Parent] : ModelRoot.Get());
 		C->SetRelativeTransform(Rest);
 		C->RegisterComponent();
 		Comps.Add(C);
 		Joints.Add(FName(*Name), C);
 		RestLocal.Add(FName(*Name), Rest);
+
+		if (!MeshName.IsEmpty())
+		{
+			const FString Path = FString::Printf(TEXT("/UnrealRocketViz/Vehicles/%s/%s/StaticMeshes/%s.%s"), *Model, *Model, *MeshName, *MeshName);
+			UStaticMesh* Mesh = LoadObject<UStaticMesh>(nullptr, *Path, nullptr, LOAD_NoWarn | LOAD_Quiet);
+			if (!Mesh)
+			{
+				++Missing;
+				continue;
+			}
+			UStaticMeshComponent* M = NewObject<UStaticMeshComponent>(this);
+			M->SetStaticMesh(Mesh);
+			M->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+			M->SetupAttachment(C);
+			M->SetRelativeTransform(World.Last().Inverse());
+			M->RegisterComponent();
+			++Meshes;
+		}
 	}
 	if (Missing > 0)
 	{
