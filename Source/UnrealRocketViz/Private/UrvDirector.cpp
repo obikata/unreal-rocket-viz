@@ -299,6 +299,14 @@ void AUrvDirector::Tick(float DeltaSeconds)
 			Place(V, *E);
 			const double Alt = UCesiumWgs84Ellipsoid::EarthCenteredEarthFixedToLongitudeLatitudeHeight(E->PosEcef).Z;
 			V->SetEngine(E->bEngineOn, Alt);
+			// Joints from named channels (absent: the rest pose, i.e. deployed and neutral).
+			auto Ch = [E](const TCHAR* Name, double Default)
+			{
+				const double* V = E->Channels.Find(FName(Name));
+				return V ? *V : Default;
+			};
+			V->SetJoints(Ch(TEXT("legs_deploy"), 1.0), Ch(TEXT("fins_deploy"), 1.0), Ch(TEXT("fin_deflect"), 0.0),
+				FMath::RadiansToDegrees(E->Gimbal.X), FMath::RadiansToDegrees(E->Gimbal.Y));
 		}
 	}
 	UpdateGroundOffset(FPlatformTime::Seconds());
