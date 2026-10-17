@@ -60,6 +60,13 @@ ENTITY:
 CHANNEL: `u8 name_len, name (ASCII), f64 value` — a display value shown as
 sent (e.g. `speed_kmh`, `altitude_km`). The viewer computes nothing from it.
 
+Joints of an imported `model` (a vehicle with a joint manifest) are driven by FRAME values,
+all optional (absent: the rest pose, legs and fins deployed, everything centred):
+`gimbal` (pitch, yaw [rad] about the engine node's local x, y; every engine together,
+clamped to the manifest's limit), and the channels `legs_deploy` and `fins_deploy`
+(0 stowed .. 1 deployed; the deploy struts follow the legs) and `fin_deflect` [deg].
+The math is `local(t) = rest_local * delta(t)` of powered-descent-sim's `models/joints.py`.
+
 ## EVENT (type 2) — a discrete event
 
 | type | field | notes |

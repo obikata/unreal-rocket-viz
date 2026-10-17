@@ -68,6 +68,11 @@ public:
 	// Dynamic pressure [Pa] from speed and an exponential atmosphere.
 	double GetDynamicPressurePa() const;
 
+	// Joint scalars, as powered-descent-sim's models/joints.py takes them (the reference):
+	// legs and grid fins 0 = stowed .. 1 = deployed (the rest pose), fin deflection and engine
+	// gimbal in degrees. No-op unless the vehicle was built from a model with a manifest.
+	void SetJoints(double LegsDeploy, double FinsDeploy, double FinDeflectDeg, double GimbalPitchDeg, double GimbalYawDeg);
+
 	// For a custom plume: attach it to this actor and drive it from here.
 	FUrvEngineEvent OnEngine;
 
@@ -88,6 +93,8 @@ private:
 	UPROPERTY() TObjectPtr<USceneComponent> ModelRoot;                 // glTF body frame -> actor frame
 	UPROPERTY() TMap<FName, TObjectPtr<USceneComponent>> Joints;       // by glTF node name
 	TMap<FName, FTransform> RestLocal;                                  // their rest transforms
+	TSharedPtr<class FJsonObject> Manifest;                             // <model>.json: joints and axes
+	TArray<double> LastJoints;                                          // what SetJoints last applied
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> Plume;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> PlumeCore;   // short, hotter inner cone
 	UPROPERTY() TObjectPtr<UPointLightComponent> Glow;
