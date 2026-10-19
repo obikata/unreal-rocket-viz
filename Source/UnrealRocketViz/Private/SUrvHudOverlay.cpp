@@ -69,13 +69,13 @@ namespace
 		{
 			C.A *= Alpha;
 			const FPaintGeometry G = Geo.ToPaintGeometry(FVector2f(Measure(Str, F)), FSlateLayoutTransform(FVector2f(TopLeft)));
-			// Soft dark halo, wide then tight, so white type reads over a white horizon.
+			// Dark halo, wide then tight, so white type reads over a white horizon, cloud or plume.
 			FSlateFontInfo B = F;
 			B.OutlineSettings.OutlineSize = FMath::Max(2, FMath::RoundToInt(4.0 * S));
-			B.OutlineSettings.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.22f * C.A);
+			B.OutlineSettings.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.40f * C.A);
 			FSlateDrawElement::MakeText(Out, Next(), G, Str, B, ESlateDrawEffect::None, FLinearColor::Transparent);
 			B.OutlineSettings.OutlineSize = FMath::Max(1, FMath::RoundToInt(1.5 * S));
-			B.OutlineSettings.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.45f * C.A);
+			B.OutlineSettings.OutlineColor = FLinearColor(0.0f, 0.0f, 0.0f, 0.70f * C.A);
 			FSlateDrawElement::MakeText(Out, Next(), G, Str, B, ESlateDrawEffect::None, FLinearColor::Transparent);
 			FSlateDrawElement::MakeText(Out, Next(), G, Str, F, ESlateDrawEffect::None, C);
 		}
@@ -167,8 +167,8 @@ namespace
 		const double Hs = 260.0 * S;
 		TArray<FSlateGradientStop> Stops;
 		Stops.Add(FSlateGradientStop(FVector2f(0.0f, 0.0f), FLinearColor(0, 0, 0, 0.0f)));
-		Stops.Add(FSlateGradientStop(FVector2f(0.0f, float(Hs * 0.6)), FLinearColor(0, 0, 0, 0.14f)));
-		Stops.Add(FSlateGradientStop(FVector2f(0.0f, float(Hs)), FLinearColor(0, 0, 0, 0.34f)));
+		Stops.Add(FSlateGradientStop(FVector2f(0.0f, float(Hs * 0.6)), FLinearColor(0, 0, 0, 0.22f)));
+		Stops.Add(FSlateGradientStop(FVector2f(0.0f, float(Hs)), FLinearColor(0, 0, 0, 0.50f)));
 		FSlateDrawElement::MakeGradient(Out, Layer++, Geo.ToPaintGeometry(FVector2f(Size.X, Hs), FSlateLayoutTransform(FVector2f(0.0f, float(Size.Y - Hs)))),
 			Stops, Orient_Horizontal);
 	}
@@ -182,7 +182,7 @@ namespace
 		// A channel the sender does not provide reads "--": nothing is computed here.
 		const double* V = E ? E->Channels.Find(R.Channel) : nullptr;
 		const double Rad = GaugeR * P.S;
-		P.Disc(X, Y, Rad, FLinearColor(0.0f, 0.0f, 0.0f, 0.28f));
+		P.Disc(X, Y, Rad, FLinearColor(0.0f, 0.0f, 0.0f, 0.42f));
 		P.Arc(X, Y, Rad, 0.0, 360.0, FLinearColor(1.0f, 1.0f, 1.0f, 0.18f), 1.0);
 		if (V && R.Max > 0.0)
 		{
