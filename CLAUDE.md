@@ -66,10 +66,12 @@ $UE/Engine/Binaries/Linux/UnrealEditor "$P/RocketVizHost.uproject" -UrvGroup=non
   Until then the existing `.uasset` blobs are plain git, and `git status` lists them as modified.
 
 ## Open work (as of 2026-10-13)
-- **Vehicle models from powered-descent-sim: built, assets not committed yet.**
-  `Tools/import_models.py` (`$PDS_DIR`, optional `URV_MODELS`) imports `models/out/*.glb`
-  into `Content/Vehicles/<model>/` (StaticMeshes, `<model>.nodes.json`, manifest copy).
-  SCENE `model` selects it (`BuildFromModel`; the procedural body stays the fallback);
+- **Vehicle models from powered-descent-sim: built; assets are generated, not committed.**
+  `Tools/import_models.sh` (`PDS_DIR`, optional `URV_MODELS`; editor closed) runs
+  `Tools/import_models.py`: it imports `models/out/*.glb` into `Content/Vehicles/<model>/`
+  (StaticMeshes, `<model>.nodes.json`, manifest copy; about 120 MB, git-ignored). Decided
+  2026-10-19: no LFS for these, each machine generates them; without them a SCENE `model`
+  falls back to the procedural body. SCENE `model` selects the import (`BuildFromModel`);
   joints are driven from the manifest (`SetJoints`: FRAME `gimbal`, channels `legs_deploy`,
   `fins_deploy`, `fin_deflect`; absent = rest pose). The drone ship is a `passive` entity
   with `model` `droneship-class`; the sim's `--site droneship` declares it.
@@ -77,11 +79,9 @@ $UE/Engine/Binaries/Linux/UnrealEditor "$P/RocketVizHost.uproject" -UrvGroup=non
   (cm, y negated; the root's lift above the foot plane included), so a mesh is attached
   with the inverse of its parent's rest world transform; animated glb nodes import as
   SkeletalMeshes, so `import_models.py` strips the `animations` first.
-  Still to do: commit `Content/Vehicles` (118 MB, Git LFS; decide quota), call
-  `import_models.py` from `regen_assets.sh` and put the `.glb` hashes in the stamp /
-  `Tests/test_assets.py`. Acceptance (Yohei): UE against the Blender renders (`shiphero`
-  view, `--sea -2.8`); Neutron-class looks all black in UE so far. Not seen yet: strut
-  telescoping mid-fold, grid fins moving, Neutron-class legs.
+  Acceptance (Yohei): UE against the Blender renders (`shiphero` view, `--sea -2.8`);
+  Neutron-class looks all black in UE so far. Not seen yet: strut telescoping mid-fold,
+  grid fins moving, Neutron-class legs.
 - **PR #6 `feat/paths`** (with powered-descent-sim PR #5): PATH messages, the
   guidance plan, earlier plans as ghosts, flown trails, P/T/H keys. Function works
   on Yohei's machine. **The visual style is not accepted yet.** Already rejected:

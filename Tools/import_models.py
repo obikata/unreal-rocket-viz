@@ -1,6 +1,6 @@
 """Imports powered-descent-sim's vehicle models (models/out/<model>.glb) into the plugin.
 
-Headless, from Tools/regen_assets.sh (needs $PDS_DIR = a powered-descent-sim checkout):
+Headless, via Tools/import_models.sh (needs $PDS_DIR = a powered-descent-sim checkout):
   UnrealEditor <Project>.uproject -run=pythonscript -script=<abs>/import_models.py -unattended -nosplash
 
 For each model it writes, under Content/Vehicles/<model>/:
