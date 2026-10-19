@@ -24,6 +24,7 @@ E.QBody2Ecef = ...;                        // rotates body vectors into ECEF; bo
 E.bEngineOn = true;
 E.Channels.Add(TEXT("speed_kmh"), ...);    // display values, shown as sent
 E.Channels.Add(TEXT("altitude_km"), ...);
+E.Channels.Add(TEXT("dynamic_pressure_kpa"), ...);   // optional: drives on-board wind noise and shake
 Director->PushFrame(Frame);
 Director->PushEvent(T, TEXT("LIFTOFF"));
 ```
