@@ -58,6 +58,7 @@ namespace
 		if (L.IsValid())
 		{
 			L->TryGetBoolField(TEXT("built_in_plume"), K.bBuiltInPlume);
+			K.AlbedoGain = Num(L, TEXT("albedo_gain"), K.AlbedoGain);
 		}
 		return K;
 	}

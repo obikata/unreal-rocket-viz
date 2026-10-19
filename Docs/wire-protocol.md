@@ -143,6 +143,7 @@ the content changes.
 - `look`: `FUrvStageLook` in metres. The entity's reference point is the
   actor origin; the body spans `start_x .. start_x + length` along +X.
 - `look.built_in_plume` (optional, default true): false draws no plume for this entity.
+- `look.albedo_gain` (optional, default 1): multiplies an imported model's base colours; above 1 lifts a near-black vehicle that would read as a silhouette in daylight.
 - `passive` (optional, default false): a ship or pad: drawn and tracked like any entity (camera
   target, trail), but without engine sound or HUD gauges.
 - `model` (optional): a vehicle class name. If `Content/Vehicles/<model>/` was imported

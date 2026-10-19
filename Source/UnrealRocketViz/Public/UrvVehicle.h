@@ -33,6 +33,10 @@ struct FUrvStageLook
 	// false: draw no plume here and leave it to an OnEngine listener.
 	UPROPERTY(EditAnywhere) bool bBuiltInPlume = true;
 
+	// An imported model's base colours are multiplied by this (> 1 lifts a near-black vehicle that
+	// would otherwise read as a silhouette in daylight). 1 = as modelled.
+	UPROPERTY(EditAnywhere) double AlbedoGain = 1.0;
+
 	// All placed with the same transform, so parts modelled in one frame stay assembled.
 	UPROPERTY(EditAnywhere) TArray<TSoftObjectPtr<UStaticMesh>> Meshes;
 	UPROPERTY(EditAnywhere) FVector MeshOffsetM = FVector::ZeroVector;      // mesh pivot in actor space [m]

@@ -277,6 +277,21 @@ bool AUrvVehicle::BuildFromModel(const FString& Model)
 			M->SetupAttachment(C);
 			M->SetRelativeTransform(World.Last().Inverse());
 			M->RegisterComponent();
+			if (!FMath::IsNearlyEqual(Look.AlbedoGain, 1.0))
+			{
+				for (int32 Slot = 0; Slot < M->GetNumMaterials(); ++Slot)
+				{
+					if (UMaterialInstanceDynamic* D = M->CreateDynamicMaterialInstance(Slot))
+					{
+						FLinearColor Base;
+						if (D->GetVectorParameterValue(FName(TEXT("BaseColorFactor")), Base))
+						{
+							D->SetVectorParameterValue(FName(TEXT("BaseColorFactor")),
+								FLinearColor(Base.R * Look.AlbedoGain, Base.G * Look.AlbedoGain, Base.B * Look.AlbedoGain, Base.A));
+						}
+					}
+				}
+			}
 			++Meshes;
 		}
 	}
