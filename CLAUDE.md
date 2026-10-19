@@ -32,6 +32,7 @@ $UE/Engine/Binaries/Linux/UnrealEditor "$P/RocketVizHost.uproject" -UrvGroup=non
 - Build with the editor **closed**; the editor does not pick up new code otherwise.
 - The level is an empty level whose GameMode Override is `UrvLiveGameMode`; it must be saved.
 - `-UrvGroup=none` = unicast (same machine). Default is multicast 239.255.76.86:47686.
+- `-UrvArm=<m>` sets the chase distance (default 160 m), for close-ups.
 - Keys: 1–9 target, V view, A auto cuts, P paths (current / ghosts / hidden),
   T trails, H HUD. P and T print the new mode on screen.
 
