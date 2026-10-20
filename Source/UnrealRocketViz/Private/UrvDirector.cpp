@@ -299,6 +299,9 @@ void AUrvDirector::Tick(float DeltaSeconds)
 			Place(V, *E);
 			const double Alt = UCesiumWgs84Ellipsoid::EarthCenteredEarthFixedToLongitudeLatitudeHeight(E->PosEcef).Z;
 			V->SetEngine(E->bEngineOn, Alt);
+			static const FName QChannel(TEXT("dynamic_pressure_kpa"));
+			const double* Q = E->Channels.Find(QChannel);
+			V->SetSenderDynamicPressurePa(Q ? *Q * 1000.0 : -1.0);
 		}
 	}
 	UpdateGroundOffset(FPlatformTime::Seconds());

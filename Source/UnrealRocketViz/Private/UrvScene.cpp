@@ -53,6 +53,8 @@ namespace UrvScene
 				Imagery = Ion;
 			}
 			Imagery->SetMaximumSimultaneousTileLoads(Settings.MaxSimultaneousTileLoads);
+			Imagery->SetMaximumScreenSpaceError(Settings.ImageryMaximumScreenSpaceError);
+			Imagery->SetMaximumTextureSize(Settings.ImageryMaximumTextureSize);
 			Terrain->AddInstanceComponent(Imagery);
 			Imagery->RegisterComponent();
 			Imagery->AddToTileset();

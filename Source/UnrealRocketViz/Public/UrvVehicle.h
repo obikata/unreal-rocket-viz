@@ -62,8 +62,10 @@ public:
 	FVector GetVelocity() const override { return VelocityCmS; }
 	bool IsEngineOn() const { return bEngineOn; }
 	double GetAltitudeM() const { return AltitudeM; }
-	// Dynamic pressure [Pa] from speed and an exponential atmosphere.
+	// Dynamic pressure [Pa]: the sender's value when it sends one (channel
+	// "dynamic_pressure_kpa"), else an estimate from speed and an exponential atmosphere.
 	double GetDynamicPressurePa() const;
+	void SetSenderDynamicPressurePa(double Pa) { SenderDynamicPressurePa = Pa; }
 
 	// For a custom plume: attach it to this actor and drive it from here.
 	FUrvEngineEvent OnEngine;
@@ -79,6 +81,7 @@ private:
 	FVector VelocityCmS = FVector::ZeroVector;
 	bool bEngineOn = false;
 	double AltitudeM = 0.0;
+	double SenderDynamicPressurePa = -1.0;   // < 0: none
 
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
 	UPROPERTY() TObjectPtr<UStaticMeshComponent> Plume;

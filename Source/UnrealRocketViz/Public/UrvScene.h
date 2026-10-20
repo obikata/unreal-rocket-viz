@@ -17,6 +17,10 @@ struct FUrvSceneSettings
 	FString ImageryUrlTemplate;
 	int32 ImageryMinimumLevel = 0;   // the server's coarsest level, if it has no whole-world tile
 	int32 ImageryMaximumLevel = 18;
+	// Imagery detail on screen: pixels of error allowed, and the largest texture per terrain tile.
+	// Flat land and sea get coarse terrain tiles, and the imagery follows them down unless these allow more.
+	double ImageryMaximumScreenSpaceError = 2.0;
+	int32 ImageryMaximumTextureSize = 2048;
 
 	// Streaming: no holes while finer tiles load, more tiles in flight, a larger cache.
 	bool bForbidHoles = true;
