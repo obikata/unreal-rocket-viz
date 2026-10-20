@@ -41,18 +41,53 @@ $UE/Engine/Binaries/Linux/UnrealEditor "$P/RocketVizHost.uproject" -UrvGroup=non
   with the project's warnings-as-errors and fails.
 - **Exposure:** Cesium's physical sun exposes for daylight. Emissive needs about
   ×2000 ("DaylightNits") to show at all, or translucent things just look black.
-- **Materials** come from `Tools/make_materials.py` (Python Editor Script Plugin).
-  It only creates *missing* materials. Clearing a material the running editor has
-  loaded asserts (`!IsRooted`) and crashes the editor. Rebuilding existing ones is
-  headless only, with `URV_REBUILD_MATERIALS=1`. Generated `.uasset` files must be
-  committed from Yohei's machine; this agent cannot make them.
+- **Materials**: see *Generated assets* below. Never clear a material the running
+  editor has loaded: it asserts (`!IsRooted`) and crashes the editor.
 - UE 5.8 treats `-Wshadow` and unreachable code as errors in plugins. Include what
   you use (a missing `UrvTypes.h` include broke the first build).
 - Time of day: SCENE `solar_time` is local *solar* time; the time zone defaults to lon/15.
 - The director settles on the newest frame when the feed stalls for
   max(0.25 s, 3 frame intervals), so a stopped stream does not bob vehicles through the ground.
 
+## Generated assets (Content/Materials)
+- Source of truth: `Tools/make_materials.py`. The `.uasset` files are its output,
+  stored in **Git LFS** (`.gitattributes`). Clone with `git lfs install` first, or
+  `git lfs pull` afterwards; `Tests/test_assets.py` fails on LFS pointer files.
+- After changing `make_materials.py`: close the editor, run `Tools/regen_assets.sh`
+  (headless Unreal; `$UE`, `$URV_HOST_PROJECT`), and commit the script, the
+  `.uasset` files and `GENERATED.json` together. `test_assets.py` fails until then,
+  because the stamp holds the script's sha256.
+- This needs Unreal, so only on Yohei's machine (a local Claude Code session can
+  run it). A cloud session cannot; it says so and leaves the gate red.
+- In the editor, Tools -> Execute Python Script runs the same script but only
+  creates *missing* materials.
+- One-time, on a machine with git-lfs (cloud sessions cannot upload LFS objects):
+  `git lfs install && git add --renormalize Content && git commit -m "Move .uasset to LFS" && git push`.
+  Until then the existing `.uasset` blobs are plain git, and `git status` lists them as modified.
+
 ## Open work (as of 2026-10-13)
+- **Next: the real vehicle models from powered-descent-sim** (Yohei wants the same models
+  as the Blender renders). Today a vehicle is a procedural body or a static mesh
+  list set by hand in `OnVehicleSpawned`; no joints move. Plan:
+  1. `Tools/import_models.py` (UE Python, called by `regen_assets.sh`, `$PDS_DIR` =
+     powered-descent-sim checkout): import `models/out/<model>.glb` into
+     `Content/Vehicles/<model>/` **as a hierarchy, not merged**: every manifest
+     joint node stays its own component. Copy `<model>.json` (the joint manifest)
+     next to it. Include the `.glb` hashes in the stamp.
+  2. Plugin-side registry: SCENE `model` (e.g. `falcon9-class`) selects the imported
+     vehicle automatically; no host C++. The procedural look stays the fallback.
+  3. Manifest-driven joints: `local(t) = rest_local * delta(t)`, exactly as
+     `powered-descent-sim/models/joints.py`. That is the reference implementation;
+     `docs/ue5-import.md` there has the import settings, axes, origin (foot plane =
+     entity reference point, so `start_x` 0), materials and the joint math. Drive
+     the engine gimbal from FRAME `gimbal`, and legs / grid fins from named
+     channels (e.g. `legs_deploy`, `fins_deploy`, `fin_deflect`), so it stays generic.
+  4. The drone ship (`models/out/droneship-class.glb`, no joints; origin = landing-target
+     centre on the deck top, waterline 2.8 m below) is imported the same way and
+     drawn as an entity the sender declares, standing on the sea surface. The plugin
+     needs nothing ship-specific: an entity with a `model`, and `ground_ref` at sea level.
+  5. Acceptance: Yohei compares UE against the Blender renders (`shiphero` view,
+     `--sea -2.8` with `droneship-class.glb`).
 - **PR #6 `feat/paths`** (with powered-descent-sim PR #5): PATH messages, the
   guidance plan, earlier plans as ghosts, flown trails, P/T/H keys. Function works
   on Yohei's machine. **The visual style is not accepted yet.** Already rejected:
