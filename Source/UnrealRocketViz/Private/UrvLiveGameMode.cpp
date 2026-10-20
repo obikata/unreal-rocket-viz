@@ -55,6 +55,11 @@ namespace
 		K.BellDiameter = Num(L, TEXT("bell_diameter"), K.BellDiameter);
 		K.PlumeLength = Num(L, TEXT("plume_length"), K.PlumeLength);
 		K.PlumeVacuumLength = Num(L, TEXT("plume_vacuum_length"), K.PlumeVacuumLength);
+		if (L.IsValid())
+		{
+			L->TryGetBoolField(TEXT("built_in_plume"), K.bBuiltInPlume);
+			K.AlbedoGain = Num(L, TEXT("albedo_gain"), K.AlbedoGain);
+		}
 		return K;
 	}
 }
@@ -137,17 +142,22 @@ void AUrvLiveGameMode::ApplyScene(const FString& Json)
 			}
 			const FUrvStageLook L = Look(Obj(E, TEXT("look")));
 			AUrvVehicle* Veh = World->SpawnActor<AUrvVehicle>();
-			Veh->Build(L);
+			Veh->Build(L, Str(E, TEXT("model")));
 			Vehicles.Add(Id, Veh);
 			const FString Label = Str(E, TEXT("label"), FString::Printf(TEXT("ENTITY %d"), Id));
 			Director->Bind(Id, Veh, Label);
-			Soundscape->Vehicles.Add(Veh);
+			bool bPassive = false;   // a ship, a pad: drawn and tracked, but no engine sound or gauges
+			E->TryGetBoolField(TEXT("passive"), bPassive);
+			if (!bPassive)
+			{
+				Soundscape->Vehicles.Add(Veh);
+			}
 			if (Cam)
 			{
 				Cam->Targets.Add(Veh);
 				Cam->AimX.Add(L.StartX + 0.5 * L.Length);
 			}
-			if (Hud)
+			if (Hud && !bPassive)
 			{
 				FUrvGaugeGroup G;
 				G.EntityId = Id;

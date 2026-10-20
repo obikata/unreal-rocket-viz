@@ -60,6 +60,13 @@ ENTITY:
 CHANNEL: `u8 name_len, name (ASCII), f64 value` — a display value shown as
 sent (e.g. `speed_kmh`, `altitude_km`). The viewer computes nothing from it.
 
+Joints of an imported `model` (a vehicle with a joint manifest) are driven by FRAME values,
+all optional (absent: the rest pose, legs and fins deployed, everything centred):
+`gimbal` (pitch, yaw [rad] about the engine node's local x, y; every engine together,
+clamped to the manifest's limit), and the channels `legs_deploy` and `fins_deploy`
+(0 stowed .. 1 deployed; the deploy struts follow the legs) and `fin_deflect` [deg].
+The math is `local(t) = rest_local * delta(t)` of powered-descent-sim's `models/joints.py`.
+
 ## EVENT (type 2) — a discrete event
 
 | type | field | notes |
@@ -135,7 +142,14 @@ the content changes.
   height does not match the terrain still lands its vehicle on the ground.
 - `look`: `FUrvStageLook` in metres. The entity's reference point is the
   actor origin; the body spans `start_x .. start_x + length` along +X.
-- `model` (optional): a vehicle class name the host project may map to its own meshes.
+- `look.built_in_plume` (optional, default true): false draws no plume for this entity.
+- `look.albedo_gain` (optional, default 1): multiplies an imported model's base colours; above 1 lifts a near-black vehicle that would read as a silhouette in daylight.
+- `passive` (optional, default false): a ship or pad: drawn and tracked like any entity (camera
+  target, trail), but without engine sound or HUD gauges.
+- `model` (optional): a vehicle class name. If `Content/Vehicles/<model>/` was imported
+  (`Tools/import_models.py`, from powered-descent-sim's models) the entity is drawn from it, with the
+  entity's reference point on the model's origin (its foot plane); otherwise the host project may map
+  it to its own meshes in `OnVehicleSpawned`, else `look` draws a procedural body.
 - `readouts`, `milestones`: the HUD's `FUrvReadout` / `FUrvMilestone` lists.
 - `paths` (optional): how PATHs of each `name` are drawn (`color` hex, `dashed`,
   `ghosts` = earlier versions kept). A PATH with no entry is drawn in a default style.

@@ -32,6 +32,7 @@ $UE/Engine/Binaries/Linux/UnrealEditor "$P/RocketVizHost.uproject" -UrvGroup=non
 - Build with the editor **closed**; the editor does not pick up new code otherwise.
 - The level is an empty level whose GameMode Override is `UrvLiveGameMode`; it must be saved.
 - `-UrvGroup=none` = unicast (same machine). Default is multicast 239.255.76.86:47686.
+- `-UrvArm=<m>` sets the chase distance (default 160 m), for close-ups.
 - Keys: 1–9 target, V view, A auto cuts, P paths (current / ghosts / hidden),
   T trails, H HUD. P and T print the new mode on screen.
 
@@ -66,28 +67,22 @@ $UE/Engine/Binaries/Linux/UnrealEditor "$P/RocketVizHost.uproject" -UrvGroup=non
   Until then the existing `.uasset` blobs are plain git, and `git status` lists them as modified.
 
 ## Open work (as of 2026-10-13)
-- **Next: the real vehicle models from powered-descent-sim** (Yohei wants the same models
-  as the Blender renders). Today a vehicle is a procedural body or a static mesh
-  list set by hand in `OnVehicleSpawned`; no joints move. Plan:
-  1. `Tools/import_models.py` (UE Python, called by `regen_assets.sh`, `$PDS_DIR` =
-     powered-descent-sim checkout): import `models/out/<model>.glb` into
-     `Content/Vehicles/<model>/` **as a hierarchy, not merged**: every manifest
-     joint node stays its own component. Copy `<model>.json` (the joint manifest)
-     next to it. Include the `.glb` hashes in the stamp.
-  2. Plugin-side registry: SCENE `model` (e.g. `falcon9-class`) selects the imported
-     vehicle automatically; no host C++. The procedural look stays the fallback.
-  3. Manifest-driven joints: `local(t) = rest_local * delta(t)`, exactly as
-     `powered-descent-sim/models/joints.py`. That is the reference implementation;
-     `docs/ue5-import.md` there has the import settings, axes, origin (foot plane =
-     entity reference point, so `start_x` 0), materials and the joint math. Drive
-     the engine gimbal from FRAME `gimbal`, and legs / grid fins from named
-     channels (e.g. `legs_deploy`, `fins_deploy`, `fin_deflect`), so it stays generic.
-  4. The drone ship (`models/out/droneship-class.glb`, no joints; origin = landing-target
-     centre on the deck top, waterline 2.8 m below) is imported the same way and
-     drawn as an entity the sender declares, standing on the sea surface. The plugin
-     needs nothing ship-specific: an entity with a `model`, and `ground_ref` at sea level.
-  5. Acceptance: Yohei compares UE against the Blender renders (`shiphero` view,
-     `--sea -2.8` with `droneship-class.glb`).
+- **Vehicle models from powered-descent-sim: built; assets are generated, not committed.**
+  `Tools/import_models.sh` (`PDS_DIR`, optional `URV_MODELS`; editor closed) runs
+  `Tools/import_models.py`: it imports `models/out/*.glb` into `Content/Vehicles/<model>/`
+  (StaticMeshes, `<model>.nodes.json`, manifest copy; about 120 MB, git-ignored). Decided
+  2026-10-19: no LFS for these, each machine generates them; without them a SCENE `model`
+  falls back to the procedural body. SCENE `model` selects the import (`BuildFromModel`);
+  joints are driven from the manifest (`SetJoints`: FRAME `gimbal`, channels `legs_deploy`,
+  `fins_deploy`, `fin_deflect`; absent = rest pose). The drone ship is a `passive` entity
+  with `model` `droneship-class`; the sim's `--site droneship` declares it.
+  Facts learned: Interchange bakes each node's whole world transform into its mesh vertices
+  (cm, y negated; the root's lift above the foot plane included), so a mesh is attached
+  with the inverse of its parent's rest world transform; animated glb nodes import as
+  SkeletalMeshes, so `import_models.py` strips the `animations` first.
+  Acceptance (Yohei): UE against the Blender renders (`shiphero` view, `--sea -2.8`);
+  Neutron-class looks all black in UE so far. Not seen yet: strut telescoping mid-fold,
+  grid fins moving, Neutron-class legs.
 - **PR #6 `feat/paths`** (with powered-descent-sim PR #5): PATH messages, the
   guidance plan, earlier plans as ghosts, flown trails, P/T/H keys. Function works
   on Yohei's machine. **The visual style is not accepted yet.** Already rejected:

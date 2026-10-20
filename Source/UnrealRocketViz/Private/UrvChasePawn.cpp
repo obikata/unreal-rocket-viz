@@ -2,6 +2,7 @@
 
 #include "Camera/CameraComponent.h"
 #include "GameFramework/PlayerController.h"
+#include "Misc/CommandLine.h"
 #include "GameFramework/SpringArmComponent.h"
 #include "Engine/World.h"
 #include "HAL/IConsoleManager.h"
@@ -55,6 +56,7 @@ void AUrvChasePawn::BeginPlay()
 {
 	Super::BeginPlay();
 	Arm->AddTickPrerequisiteActor(this);
+	FParse::Value(FCommandLine::Get(), TEXT("UrvArm="), ArmM);   // chase distance [m], e.g. for close-ups
 }
 
 void AUrvChasePawn::SetView(EUrvView InView, int32 InTarget)
