@@ -62,9 +62,7 @@ $UE/Engine/Binaries/Linux/UnrealEditor "$P/RocketVizHost.uproject" -UrvGroup=non
   run it). A cloud session cannot; it says so and leaves the gate red.
 - In the editor, Tools -> Execute Python Script runs the same script but only
   creates *missing* materials.
-- One-time, on a machine with git-lfs (cloud sessions cannot upload LFS objects):
-  `git lfs install && git add --renormalize Content && git commit -m "Move .uasset to LFS" && git push`.
-  Until then the existing `.uasset` blobs are plain git, and `git status` lists them as modified.
+- Done 2026-10-20 (`.uasset` now LFS pointers). On a new clone: `git lfs install` before cloning, or `git lfs pull`.
 
 ## Open work (as of 2026-10-13)
 - **Vehicle models from powered-descent-sim: built; assets are generated, not committed.**
