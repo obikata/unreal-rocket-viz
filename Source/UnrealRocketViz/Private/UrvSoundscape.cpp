@@ -101,9 +101,16 @@ void AUrvSoundscape::Tick(float DeltaSeconds)
 	bool bHearing = false;
 	if (Riding)
 	{
-		// Through the structure: rumble, plus wind noise growing with dynamic pressure.
+		// Through the structure: rumble, plus wind noise growing with dynamic pressure. An
+		// engine firing on a stage still stacked with this one (within a vehicle length) is
+		// heard the same way.
 		const double Q = FMath::Clamp(Riding->GetDynamicPressurePa() / 30000.0, 0.0, 1.5);
-		Gain = Riding->IsEngineOn() ? float(0.45 + 0.35 * Q) : float(0.12 * Q);
+		bool bFiring = Riding->IsEngineOn();
+		for (const TObjectPtr<AUrvVehicle>& V : Vehicles)
+		{
+			bFiring |= V && V->IsEngineOn() && FVector::Dist(V->GetActorLocation(), Riding->GetActorLocation()) < 50.0 * SoundCmPerM;
+		}
+		Gain = bFiring ? float(0.45 + 0.35 * Q) : float(0.12 * Q);
 		Cutoff = float(350.0 + 2500.0 * Q);
 	}
 	else

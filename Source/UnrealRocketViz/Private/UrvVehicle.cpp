@@ -469,6 +469,10 @@ void AUrvVehicle::BuildPlume()
 
 double AUrvVehicle::GetDynamicPressurePa() const
 {
+	if (SenderDynamicPressurePa >= 0.0)
+	{
+		return SenderDynamicPressurePa;
+	}
 	const double Rho = 1.225 * FMath::Exp(-FMath::Max(AltitudeM, 0.0) / 8500.0);
 	const double V = VelocityCmS.Size() / CmPerM;
 	return 0.5 * Rho * V * V;

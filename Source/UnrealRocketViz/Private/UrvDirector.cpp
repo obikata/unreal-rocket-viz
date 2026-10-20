@@ -307,6 +307,9 @@ void AUrvDirector::Tick(float DeltaSeconds)
 			};
 			V->SetJoints(Ch(TEXT("legs_deploy"), 1.0), Ch(TEXT("fins_deploy"), 1.0), Ch(TEXT("fin_deflect"), 0.0),
 				FMath::RadiansToDegrees(E->Gimbal.X), FMath::RadiansToDegrees(E->Gimbal.Y));
+			static const FName QChannel(TEXT("dynamic_pressure_kpa"));
+			const double* Q = E->Channels.Find(QChannel);
+			V->SetSenderDynamicPressurePa(Q ? *Q * 1000.0 : -1.0);
 		}
 	}
 	UpdateGroundOffset(FPlatformTime::Seconds());

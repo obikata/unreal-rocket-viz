@@ -69,8 +69,10 @@ public:
 	FVector GetVelocity() const override { return VelocityCmS; }
 	bool IsEngineOn() const { return bEngineOn; }
 	double GetAltitudeM() const { return AltitudeM; }
-	// Dynamic pressure [Pa] from speed and an exponential atmosphere.
+	// Dynamic pressure [Pa]: the sender's value when it sends one (channel
+	// "dynamic_pressure_kpa"), else an estimate from speed and an exponential atmosphere.
 	double GetDynamicPressurePa() const;
+	void SetSenderDynamicPressurePa(double Pa) { SenderDynamicPressurePa = Pa; }
 
 	// Joint scalars, as powered-descent-sim's models/joints.py takes them (the reference):
 	// legs and grid fins 0 = stowed .. 1 = deployed (the rest pose), fin deflection and engine
@@ -92,6 +94,7 @@ private:
 	FVector VelocityCmS = FVector::ZeroVector;
 	bool bEngineOn = false;
 	double AltitudeM = 0.0;
+	double SenderDynamicPressurePa = -1.0;   // < 0: none
 
 	UPROPERTY() TObjectPtr<USceneComponent> Root;
 	UPROPERTY() TObjectPtr<USceneComponent> ModelRoot;                 // glTF body frame -> actor frame
