@@ -64,7 +64,7 @@ $UE/Engine/Binaries/Linux/UnrealEditor "$P/RocketVizHost.uproject" -UrvGroup=non
   creates *missing* materials.
 - Done 2026-10-20 (`.uasset` now LFS pointers). On a new clone: `git lfs install` before cloning, or `git lfs pull`.
 
-## Open work (as of 2026-10-13)
+## Open work (as of 2026-10-21)
 - **Vehicle models from powered-descent-sim: built; assets are generated, not committed.**
   `Tools/import_models.sh` (`PDS_DIR`, optional `URV_MODELS`; editor closed) runs
   `Tools/import_models.py`: it imports `models/out/*.glb` into `Content/Vehicles/<model>/`
@@ -78,9 +78,21 @@ $UE/Engine/Binaries/Linux/UnrealEditor "$P/RocketVizHost.uproject" -UrvGroup=non
   (cm, y negated; the root's lift above the foot plane included), so a mesh is attached
   with the inverse of its parent's rest world transform; animated glb nodes import as
   SkeletalMeshes, so `import_models.py` strips the `animations` first.
-  Acceptance (Yohei): UE against the Blender renders (`shiphero` view, `--sea -2.8`);
-  Neutron-class looks all black in UE so far. Not seen yet: strut telescoping mid-fold,
-  grid fins moving, Neutron-class legs.
+  Acceptance (Yohei): UE against the Blender renders (`shiphero` view, `--sea -2.8`).
+  Neutron-class is near-black by design (carbon base colour, under a daylight sun). Yohei
+  prefers that look, so the sender's `look.albedo_gain` is 1.0 (a sender can raise it; the
+  viewer multiplies the base colours of every material of the model by it, 7.0 was too grey
+  on the whole vehicle and cannot lift only the body). The Neutron-class landing on the drone
+  ship was recorded and posted at 1.0. Not seen yet: strut telescoping mid-fold, grid fins
+  moving, Neutron-class legs.
+- **Sea: flat imagery colour, no waves or glint; parked (low priority).** Tried and not
+  accepted: Unreal's Water plugin, a flat plane with a wave material (a tangent plane cannot
+  match the curved globe far out: hard seam), Cesium `EnableWaterMask` (no visible change).
+  If revisited, start from the Cesium tile material's water path, not extra geometry.
+- Recording: with the game window not focused, UE mutes its audio; give it focus (a libX11
+  `_NET_ACTIVE_WINDOW` message works without xdotool) and check the window is still
+  1920x1043 before recording (a take once came out at 1440x773, top-left only). Check sound
+  with `-af volumedetect`. A silent take also happened with focus; relaunching fixed it.
 - **PR #6 `feat/paths`** (with powered-descent-sim PR #5): PATH messages, the
   guidance plan, earlier plans as ghosts, flown trails, P/T/H keys. Function works
   on Yohei's machine. **The visual style is not accepted yet.** Already rejected:
